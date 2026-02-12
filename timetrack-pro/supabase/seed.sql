@@ -1,0 +1,2 @@
+-- Seed data for TimeTrack Pro
+-- Insert initial roles or config data here
