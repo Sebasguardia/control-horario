@@ -22,10 +22,11 @@ export const Navbar = () => {
         >
             <div className="container mx-auto flex h-20 items-center justify-between px-6">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20">
-                        <Timer className="h-6 w-6" />
-                    </div>
-                    <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white uppercase italic">TimeTrack Pro</span>
+                    <img
+                        src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
+                        alt="Logo"
+                        className="h-16 w-auto object-contain"
+                    />
                 </div>
 
                 <nav className="hidden items-center gap-10 lg:flex">

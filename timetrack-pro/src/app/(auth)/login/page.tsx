@@ -1,16 +1,23 @@
-// src/app/(auth)/login/page.tsx
 "use client";
+
 import Link from "next/link";
-import { Timer, ArrowRight, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Timer, ArrowRight, Loader2, Sun, Moon, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useNotification } from "@/contexts/notification-context";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
     const { addNotification } = useNotification();
+    const { theme, setTheme } = useTheme();
+
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) return null;
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,23 +29,50 @@ export default function LoginPage() {
         setLoading(false);
     };
 
+    const bgImage = theme === "dark"
+        ? "https://i.ibb.co/5WMJGMmM/imagen-2026-02-12-001014341.png"
+        : "https://i.ibb.co/gZn4kjCt/imagen-2026-02-11-231723472.png";
+
     return (
-        <div className="relative min-h-screen w-full overflow-hidden bg-[#f4f7fa]">
-            {/* FONDO */}
+        <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-[#020617]">
+            {/* FONDO - Capas superpuestas para cambio instantáneo */}
             <div className="absolute inset-0 z-0">
                 <img
                     src="https://i.ibb.co/gZn4kjCt/imagen-2026-02-11-231723472.png"
-                    alt="Background Illustration"
-                    className="h-full w-full object-cover opacity-60"
+                    alt="Light Background"
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${theme === 'dark' ? 'opacity-0' : 'opacity-60'}`}
+                />
+                <img
+                    src="https://i.ibb.co/5WMJGMmM/imagen-2026-02-12-001014341.png"
+                    alt="Dark Background"
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${theme === 'dark' ? 'opacity-40' : 'opacity-0'}`}
                 />
             </div>
 
-            {/* LOGO */}
-            <div className="absolute left-10 top-10 z-20 flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
-                    <Timer size={20} />
+            {/* CONTROLES SUPERIORES */}
+            <div className="absolute left-10 top-10 z-40 flex items-center gap-4">
+                <Link
+                    href="/"
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
+                >
+                    <ArrowLeft size={20} />
+                </Link>
+                <div className="flex items-center gap-2">
+                    <img
+                        src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
+                        alt="Logo"
+                        className="h-14 w-auto object-contain dark:brightness-200"
+                    />
                 </div>
-                <span className="text-xl font-black tracking-tighter text-slate-900 italic">TimeTrack<span className="text-emerald-600">Pro</span></span>
+            </div>
+
+            <div className="absolute right-10 top-10 z-40">
+                <button
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
+                >
+                    {theme === "dark" ? <Sun size={20} className="text-emerald-500" /> : <Moon size={20} />}
+                </button>
             </div>
 
             {/* TARJETA */}
@@ -46,43 +80,43 @@ export default function LoginPage() {
                 <motion.div
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="w-full max-w-[360px] rounded-[2rem] bg-white p-8 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] selection:bg-emerald-100"
+                    className="w-full max-w-[360px] rounded-[2rem] bg-white/90 dark:bg-slate-900/90 p-8 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_100px_-20px_rgba(0,0,0,0.5)] backdrop-blur-xl border border-white dark:border-slate-800 selection:bg-emerald-100 dark:selection:bg-emerald-900/30"
                 >
                     <div className="mb-8">
-                        <h2 className="text-2xl font-black tracking-tight text-slate-900 mb-1">Iniciar Sesión</h2>
-                        <p className="text-xs font-bold text-slate-400">
-                            ¿Eres nuevo? <Link href="/register" className="text-emerald-600 hover:underline">Crea una cuenta</Link>
+                        <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mb-1">Iniciar Sesión</h2>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500">
+                            ¿Eres nuevo? <Link href="/register" className="text-emerald-600 dark:text-emerald-500 hover:underline">Crea una cuenta</Link>
                         </p>
                     </div>
 
                     <form className="space-y-4" onSubmit={handleLogin}>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Correo Electrónico</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Correo Electrónico</label>
                             <input
                                 type="email"
                                 required
                                 defaultValue="mock@example.com"
-                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-300"
+                                className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-sm font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                             />
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center ml-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contraseña</label>
-                                <Link href="#" className="text-[10px] font-bold text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</Link>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Contraseña</label>
+                                <Link href="#" className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 hover:underline">¿Olvidaste tu contraseña?</Link>
                             </div>
                             <input
                                 type="password"
                                 required
                                 defaultValue="password123"
-                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-300"
+                                className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-sm font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="h-12 w-full rounded-xl bg-emerald-600 text-sm font-black text-white shadow-xl shadow-emerald-500/20 transition-all hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                            className="h-12 w-full rounded-xl bg-emerald-600 text-sm font-black text-white shadow-xl shadow-emerald-500/20 transition-all hover:bg-emerald-700 dark:hover:bg-emerald-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
                         >
                             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                                 <>
@@ -93,13 +127,13 @@ export default function LoginPage() {
                         </button>
 
                         <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-                            <div className="relative flex justify-center text-[10px] font-black uppercase text-slate-400 tracking-widest bg-white px-3 mx-auto w-fit">O</div>
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100 dark:border-slate-800"></div></div>
+                            <div className="relative flex justify-center text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest bg-white dark:bg-slate-900 px-3 mx-auto w-fit transition-colors">O</div>
                         </div>
 
                         <button
                             type="button"
-                            className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-6 text-xs font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+                            className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-6 text-xs font-bold text-slate-700 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 shadow-sm"
                         >
                             <svg className="h-4 w-4" viewBox="0 0 24 24">
                                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />

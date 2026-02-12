@@ -21,6 +21,8 @@ export function Toaster() {
                     border: "none",
                     padding: 0,
                     maxWidth: "none",
+                    marginRight: "40px",
+                    marginTop: "20px"
                 },
             }}
         />

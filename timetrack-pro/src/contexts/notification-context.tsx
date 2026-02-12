@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { AlertCircle, CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 
 export type NotificationType = "success" | "warning" | "info" | "error";
 
@@ -44,11 +45,12 @@ const CustomToast = ({
     onClose: () => void;
     duration: number;
 }) => {
+    const { theme } = useTheme();
     const iconConfig = {
-        success: { Icon: CheckCircle2, bg: "#dcfce7", color: "#166534", barColor: "#22c55e" },
-        error: { Icon: AlertCircle, bg: "#fee2e2", color: "#dc2626", barColor: "#ef4444" },
-        warning: { Icon: AlertTriangle, bg: "#ffedd5", color: "#ea580c", barColor: "#f97316" },
-        info: { Icon: Info, bg: "#dbeafe", color: "#2563eb", barColor: "#3b82f6" },
+        success: { Icon: CheckCircle2, bg: "rgb(22 101 52 / 0.1)", color: "#22c55e", barColor: "#22c55e" },
+        error: { Icon: AlertCircle, bg: "rgb(220 38 38 / 0.1)", color: "#ef4444", barColor: "#ef4444" },
+        warning: { Icon: AlertTriangle, bg: "rgb(234 88 12 / 0.1)", color: "#f97316", barColor: "#f97316" },
+        info: { Icon: Info, bg: "rgb(37 99 235 / 0.1)", color: "#3b82f6", barColor: "#3b82f6" },
     };
 
     const { Icon, bg, color, barColor } = iconConfig[type];
@@ -56,55 +58,35 @@ const CustomToast = ({
     return (
         <div
             style={{
-                width: '380px', // Reducido para que quepa mejor
-                minHeight: '100px',
+                width: '440px',
+                maxWidth: '90vw',
+                minHeight: '80px',
                 position: 'relative',
+                backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
+                borderRadius: '32px',
+                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '18px',
-                padding: '20px 24px',
-                borderRadius: '28px',
-                backgroundColor: 'white',
-                border: '1px solid #f1f5f9',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
+                gap: '16px',
+                padding: '20px',
+                paddingRight: '64px', // Espacio real para la X
+                boxSizing: 'border-box',
                 overflow: 'hidden'
             }}
-            className="dark:bg-[#0f172a] dark:border-slate-800"
         >
             <div
-                style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: bg,
-                    color: color,
-                    flexShrink: 0
-                }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: bg, color: color }}
             >
-                <Icon size={24} />
+                <Icon size={24} strokeWidth={2.5} />
             </div>
 
-            <div style={{ flex: 1, paddingRight: '35px' }}>
-                <p style={{
-                    fontSize: '16px', // Título más pequeño
-                    fontWeight: 900,
-                    color: '#1e293b',
-                    lineHeight: 1.2,
-                    marginBottom: '2px',
-                    margin: 0
-                }} className="dark:text-white">
+            <div className="flex-1 min-w-0 pr-5">
+                <h4 className="m-0 text-base font-black leading-tight text-slate-900 dark:text-white mb-1">
                     {title}
-                </p>
-                <p style={{
-                    fontSize: '13px', // Mensaje más pequeño
-                    fontWeight: 700,
-                    color: '#94a3b8',
-                    lineHeight: 1.4,
-                    margin: 0
-                }} className="dark:text-slate-500">
+                </h4>
+                <p className="m-0 text-[13px] font-bold leading-normal text-slate-500 dark:text-slate-400">
                     {message}
                 </p>
             </div>
@@ -116,28 +98,31 @@ const CustomToast = ({
                     right: '20px',
                     top: '50%',
                     transform: 'translateY(-50%)',
+                    zIndex: 100,
                     padding: '8px',
-                    border: 'none',
-                    background: 'none',
                     cursor: 'pointer',
-                    color: '#cbd5e1',
-                    zIndex: 50
+                    background: 'none',
+                    border: 'none'
                 }}
-                className="hover:text-slate-500 transition-colors"
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
             >
-                <X size={20} strokeWidth={2.5} />
+                <X size={20} strokeWidth={3} />
             </button>
 
-            <div style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '6px', // Línea un poco más delgada para el nuevo tamaño
-                backgroundColor: '#f8fafc',
-                zIndex: 20,
-                overflow: 'hidden'
-            }} className="dark:bg-slate-800/20">
+            {/* Barra de Tiempo - Con radio para no sobresalir */}
+            <div
+                style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '20px',
+                    right: '64px', // Termina antes de la X
+                    height: '4px',
+                    borderRadius: '10px',
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                    overflow: 'hidden',
+                    zIndex: 40
+                }}
+            >
                 <motion.div
                     initial={{ width: "100%" }}
                     animate={{ width: "0%" }}
@@ -145,7 +130,7 @@ const CustomToast = ({
                     style={{
                         height: '100%',
                         backgroundColor: barColor,
-                        boxShadow: `0 -2px 8px ${barColor}33`
+                        boxShadow: `0 0 10px ${barColor}80`
                     }}
                 />
             </div>
@@ -196,7 +181,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                     opacity: t.visible ? 1 : 0,
                     transform: t.visible ? 'translateY(0) scale(1)' : 'translateY(-20px) scale(0.95)',
                     transition: 'all 300ms cubic-bezier(0.23, 1, 0.32, 1)',
-                    pointerEvents: t.visible ? 'auto' : 'none'
+                    pointerEvents: t.visible ? 'auto' : 'none',
+                    width: '420px',
+                    maxWidth: '90vw'
                 }}
             >
                 <CustomToast

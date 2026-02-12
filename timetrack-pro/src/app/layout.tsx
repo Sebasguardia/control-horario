@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "TimeTrack Pro - Control Horario",
   description: "Sistema de gestión de tiempo laboral. Registra jornadas, gestiona pausas y genera reportes detallados.",
   keywords: ["control horario", "tiempo laboral", "gestión", "productividad"],
+  icons: {
+    icon: "https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png",
+  },
 };
 
 export default function RootLayout({

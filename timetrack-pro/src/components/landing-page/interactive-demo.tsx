@@ -57,11 +57,12 @@ export const InteractiveDemo = () => {
                     <div className="flex h-[750px] flex-col lg:flex-row">
                         {/* Sidebar */}
                         <div className="w-full lg:w-72 border-r border-slate-100 dark:border-slate-800 p-8 hidden lg:block">
-                            <div className="mb-12 flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
-                                    <Timer size={18} />
-                                </div>
-                                <span className="font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">TimeTrack</span>
+                            <div className="mb-12">
+                                <img
+                                    src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
+                                    alt="Logo"
+                                    className="h-12 w-auto object-contain"
+                                />
                             </div>
 
                             <nav className="space-y-6">

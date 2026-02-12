@@ -43,14 +43,18 @@ export default function Sidebar() {
 
     return (
         <aside className="relative flex h-full w-full flex-col bg-transparent">
-            {/* Logo Section */}
-            <div className="flex h-24 items-center gap-3 px-8 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#166534]/10 dark:bg-[#166534]/20">
-                    <Timer className="h-6 w-6 text-[#166534] dark:text-[#22c55e]" />
+            {/* Logo Section - Logo y Texto centrados con ajuste a la izquierda */}
+            <div className="flex h-32 w-full items-center justify-center shrink-0">
+                <div className="flex items-center gap-0 -ml-9">
+                    <img
+                        src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
+                        alt="Logo"
+                        className="h-16 w-auto object-contain -mr-6"
+                    />
+                    <span className="text-2xl font-[1000] tracking-tighter text-slate-800 dark:text-white italic leading-none relative z-10">
+                        TimeTrack<span className="text-emerald-600">Pro</span>
+                    </span>
                 </div>
-                <span className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">
-                    TimeTrack
-                </span>
             </div>
 
             {/* Navigation Content - Scrollable area without scrollbar */}
@@ -130,6 +134,6 @@ export default function Sidebar() {
                     </ul>
                 </div>
             </div>
-        </aside>
+        </aside >
     );
 }

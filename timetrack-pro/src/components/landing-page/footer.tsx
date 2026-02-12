@@ -11,10 +11,11 @@ export const Footer = () => {
                     {/* Logo and Tagline */}
                     <div className="lg:col-span-5">
                         <div className="flex items-center gap-3 mb-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 dark:bg-emerald-600 text-white shadow-xl">
-                                <Timer className="h-6 w-6" />
-                            </div>
-                            <span className="text-2xl font-black tracking-tighter italic uppercase text-slate-900 dark:text-white">TimeTrack Pro</span>
+                            <img
+                                src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
+                                alt="Logo"
+                                className="h-20 w-auto object-contain"
+                            />
                         </div>
                         <p className="text-xl font-medium text-slate-400 dark:text-slate-500 max-w-sm leading-relaxed mb-10">
                             Elevando el estándar de la gestión de tiempo para la nueva generación de profesionales y equipos de alto rendimiento.
