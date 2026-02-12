@@ -30,11 +30,11 @@ export const HowItWorks = () => {
     return (
         <section id="how-it-works" className="py-32 bg-slate-50 dark:bg-slate-900 overflow-hidden">
             <div className="container mx-auto px-6">
-                <div className="mb-24 text-center">
+                <div className="mb-16 md:mb-24 text-center">
                     <motion.p
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        className="text-sm font-black uppercase tracking-[0.4em] text-emerald-600 mb-6"
+                        className="text-[10px] md:text-sm font-black uppercase tracking-[0.4rem] text-emerald-600 mb-6"
                     >
                         Proceso Simplificado
                     </motion.p>
@@ -42,7 +42,7 @@ export const HowItWorks = () => {
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white sm:text-6xl"
+                        className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white sm:text-6xl"
                     >
                         Optimiza tu flujo en <span className="text-emerald-600 italic">cuatro pasos.</span>
                     </motion.h2>
@@ -62,15 +62,15 @@ export const HowItWorks = () => {
                                 className="relative flex flex-col items-center text-center group"
                             >
                                 {/* Step Number / Icon Container */}
-                                <div className="mb-10 relative z-10 h-24 w-24 rounded-[2rem] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-xl flex items-center justify-center transition-all group-hover:bg-emerald-600 group-hover:text-white">
-                                    <step.icon size={32} />
-                                    <div className="absolute -top-3 -right-3 h-10 w-10 rounded-full bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-sm font-black italic">
+                                <div className="mb-8 md:mb-10 relative z-10 h-20 w-20 md:h-24 md:w-24 rounded-[1.5rem] md:rounded-[2rem] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-xl flex items-center justify-center transition-all group-hover:bg-emerald-600 group-hover:text-white">
+                                    <step.icon size={28} />
+                                    <div className="absolute -top-2 -right-2 md:-top-3 md:-right-3 h-8 w-8 md:h-10 md:w-10 rounded-full bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-xs md:text-sm font-black italic">
                                         0{i + 1}
                                     </div>
                                 </div>
 
-                                <h3 className="mb-4 text-2xl font-black text-slate-900 dark:text-white tracking-tight">{step.title}</h3>
-                                <p className="text-lg leading-relaxed text-slate-500 dark:text-slate-400 px-4">{step.desc}</p>
+                                <h3 className="mb-3 md:mb-4 text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{step.title}</h3>
+                                <p className="text-base md:text-lg leading-relaxed text-slate-500 dark:text-slate-400 px-2 md:px-4">{step.desc}</p>
                             </motion.div>
                         ))}
                     </div>

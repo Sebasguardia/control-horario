@@ -1,27 +1,25 @@
 "use client";
 
-import { mockHistorySessions, mockUser } from "@/mocks/mock-data";
 import { X, CheckCircle2, Clock, Coffee, TrendingUp, Calendar, AlertCircle } from "lucide-react";
-import { Dispatch, SetStateAction, useMemo } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { Modal } from "@/components/ui/modal";
 import { formatHoursMinutes, cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useUserStore } from "@/stores/user-store";
 
 interface DayDetailModalProps {
     selectedDay: string | null;
     setSelectedDay: Dispatch<SetStateAction<string | null>>;
+    session: any | null; // Using any for now to match Session type, ideally should be WorkSession
 }
 
-export function DayDetailModal({ selectedDay, setSelectedDay }: DayDetailModalProps) {
-    const session = useMemo(() => {
-        if (!selectedDay) return null;
-        return mockHistorySessions.find(s => s.date === selectedDay);
-    }, [selectedDay]);
+export function DayDetailModal({ selectedDay, setSelectedDay, session }: DayDetailModalProps) {
+    const user = useUserStore(state => state.user);
 
     if (!selectedDay) return null;
 
     const dateObj = new Date(selectedDay);
-    const targetMinutes = mockUser.expected_hours_per_day * 60;
+    const targetMinutes = (user?.expected_hours_per_day || 8) * 60;
     const netMinutes = session?.totalMinutes || 0;
     const diff = netMinutes - targetMinutes;
     const progress = Math.min(Math.round((netMinutes / targetMinutes) * 100), 100);

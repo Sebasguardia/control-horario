@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, Mail, Search, Command, Moon, Sun, CheckCircle2, Coffee } from "lucide-react";
-import { mockUser } from "@/mocks/mock-data";
+import { Bell, Mail, Search, Command, Moon, Sun, CheckCircle2, Coffee, Menu } from "lucide-react";
+import { useUserStore } from "@/stores/user-store";
+import { useUIStore } from "@/stores/ui-store";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ export default function Navbar() {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const user = useUserStore((state) => state.user);
+    const toggleSidebar = useUIStore((state) => state.toggleSidebar);
 
     const { notifications, unreadCount, markAllAsRead } = useNotification();
 
@@ -25,33 +28,40 @@ export default function Navbar() {
     };
 
     return (
-        <header className="flex h-full w-full items-center justify-between px-10">
-            {/* Left Side: Search Bar */}
-            <div className="flex-1 max-w-md">
-                <div className="group relative">
+        <header className="flex h-full w-full items-center justify-between px-6 lg:px-10 gap-4">
+            {/* Left Side: Mobile Menu Toggle + Search Bar */}
+            <div className="flex items-center gap-4 flex-1 max-w-md">
+                <button
+                    onClick={toggleSidebar}
+                    className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 text-slate-500 shadow-sm border border-slate-50 dark:border-slate-700 active:scale-95"
+                >
+                    <Menu size={20} />
+                </button>
+
+                <div className="group relative flex-1 hidden sm:block">
                     <Search className="absolute left-6 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                     <input
                         type="text"
                         placeholder="Search task"
                         className="h-11 w-full rounded-full border-none bg-white dark:bg-slate-800 px-14 text-base font-bold text-slate-700 dark:text-slate-200 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm focus:ring-2 focus:ring-[#166534]/10 dark:focus:ring-[#166534]/30"
                     />
-                    <div className="absolute right-5 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-full border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-[11px] font-black text-slate-400 dark:text-slate-500 shadow-sm uppercase">
+                    <div className="absolute right-5 top-1/2 hidden md:flex -translate-y-1/2 items-center gap-1 rounded-full border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-[11px] font-black text-slate-400 dark:text-slate-500 shadow-sm uppercase">
                         <Command className="h-3.5 w-3.5" /> F
                     </div>
                 </div>
             </div>
 
             {/* Right Side: Actions + Profile */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 sm:gap-6">
                 {/* Communication Icons */}
-                <div className="flex items-center gap-3 relative">
+                <div className="flex items-center gap-2 sm:gap-3 relative">
                     {mounted && (
                         <button
                             onClick={toggleTheme}
-                            className="flex h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white active:scale-95 border border-slate-50 dark:border-slate-700"
+                            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white active:scale-95 border border-slate-50 dark:border-slate-700"
                             aria-label="Toggle Dark Mode"
                         >
-                            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                            {theme === 'dark' ? <Sun className="h-4 w-4 sm:h-5 sm:w-5" /> : <Moon className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </button>
                     )}
 
@@ -61,15 +71,15 @@ export default function Navbar() {
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
                             className={cn(
-                                "relative flex h-11 w-11 items-center justify-center rounded-full shadow-sm transition-all active:scale-95 border",
+                                "relative flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-sm transition-all active:scale-95 border",
                                 showNotifications
                                     ? "bg-[#1A5235] text-white border-[#1A5235] dark:border-emerald-800"
                                     : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-50 dark:border-slate-700 hover:bg-white/80 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
                             )}
                         >
-                            <Bell className="h-5 w-5" />
+                            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
                             {unreadCount > 0 && (
-                                <span className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-800 animate-pulse" />
+                                <span className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-800 animate-pulse" />
                             )}
                         </button>
 
@@ -133,18 +143,34 @@ export default function Navbar() {
                 </div>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-4 pl-4">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm border border-slate-100 dark:border-slate-700">
-                        <img
-                            src={mockUser.avatar_url}
-                            alt="User"
-                            className="h-full w-full object-cover"
-                        />
-                    </div>
-                    <div className="hidden xl:block">
-                        <p className="text-base font-black text-slate-800 dark:text-slate-200 leading-tight">{mockUser.full_name}</p>
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 lowercase">{mockUser.email}</p>
-                    </div>
+                <div className="flex items-center gap-3 sm:gap-4 pl-2 sm:pl-4 border-l border-slate-100 dark:border-slate-800 ml-1 sm:ml-2">
+                    {!mounted || !user ? (
+                        <div className="flex items-center gap-3 animate-pulse">
+                            <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-full bg-slate-100 dark:bg-slate-800" />
+                            <div className="hidden xl:block space-y-2">
+                                <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" />
+                                <div className="h-3 w-32 bg-slate-100 dark:bg-slate-800 rounded" />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="h-9 w-9 sm:h-11 sm:w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm border border-slate-100 dark:border-slate-700">
+                                <img
+                                    src={user?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name}&backgroundColor=166534&textColor=ffffff`}
+                                    alt="User"
+                                    className="h-full w-full object-cover"
+                                />
+                            </div>
+                            <div className="hidden xl:block">
+                                <p className="text-base font-black text-slate-800 dark:text-slate-200 leading-tight">
+                                    {user?.full_name || "Usuario"}
+                                </p>
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 lowercase">
+                                    {user?.email}
+                                </p>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </header>

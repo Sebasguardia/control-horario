@@ -15,12 +15,12 @@ export default function AnalyticsPage() {
     }, [setTitle]);
 
     return (
-        <div className="space-y-10">
+        <div className="space-y-6 lg:space-y-10">
             {/* Header Section */}
-            <div>
-                <h1 className="text-4xl font-black tracking-tight text-slate-800 dark:text-white">{title}</h1>
+            <div className="px-2 sm:px-0">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-800 dark:text-white">{title}</h1>
                 {subtitle && (
-                    <p className="mt-2 text-base font-bold text-slate-400 dark:text-slate-500">{subtitle}</p>
+                    <p className="mt-1 sm:mt-2 text-sm sm:text-base font-bold text-slate-400 dark:text-slate-500">{subtitle}</p>
                 )}
             </div>
 
@@ -28,7 +28,7 @@ export default function AnalyticsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="space-y-8"
+                className="space-y-6 lg:space-y-8 px-1 sm:px-0"
             >
                 <AnalyticsMetrics />
                 <TrendsGraph />

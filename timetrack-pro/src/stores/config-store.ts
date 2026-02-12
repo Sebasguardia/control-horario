@@ -13,7 +13,8 @@ interface ConfigState {
     overtimeAlerts: boolean;
     exitReminder: boolean;
 
-    setConfig: (config: Partial<Omit<ConfigState, 'setConfig'>>) => void;
+    setConfig: (config: Partial<Omit<ConfigState, 'setConfig' | 'reset'>>) => void;
+    reset: () => void;
 }
 
 export const useConfigStore = create<ConfigState>()(
@@ -29,6 +30,16 @@ export const useConfigStore = create<ConfigState>()(
             exitReminder: true,
 
             setConfig: (config) => set((state) => ({ ...state, ...config })),
+            reset: () => set({
+                hoursPerDay: 8,
+                workDaysPerWeek: 5,
+                startTimeHabitual: "08:00",
+                endTimeHabitual: "17:00",
+                notificationsEnabled: true,
+                breakReminders: true,
+                overtimeAlerts: true,
+                exitReminder: true,
+            }),
         }),
         {
             name: 'timetrack-config',

@@ -2,12 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import { useTimer } from "@/hooks/use-timer";
-import { mockUser } from "@/mocks/mock-data";
 import toast from "react-hot-toast";
 import { AlertCircle, CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import { useUserStore } from "@/stores/user-store";
 
 export type NotificationType = "success" | "warning" | "info" | "error";
 
@@ -139,6 +138,7 @@ const CustomToast = ({
 };
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
+    const user = useUserStore(state => state.user);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const lastSent = useRef<Record<string, number>>({});
     const activeToasts = useRef<string[]>([]); // Tracking de toast IDs activos
@@ -219,13 +219,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
 
     const checkWorkSchedule = useCallback(() => {
+        if (!user) return; // Don't check if no user
+
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         const currentTimeDecimal = currentHour + currentMinute / 60;
 
-        const [startHourStr, startMinuteStr] = (mockUser.schedule?.start || "08:00").split(':');
-        const [endHourStr, endMinuteStr] = (mockUser.schedule?.end || "17:00").split(':');
+        const [startHourStr, startMinuteStr] = (user.schedule_start || "08:00").split(':');
+        const [endHourStr, endMinuteStr] = (user.schedule_end || "17:00").split(':');
 
         const startTimeDecimal = parseInt(startHourStr) + parseInt(startMinuteStr) / 60;
         const endTimeDecimal = parseInt(endHourStr) + parseInt(endMinuteStr) / 60;
@@ -246,11 +248,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             currentTimeDecimal < endTimeDecimal + 1 &&
             !dailyNotificationsSent.workEnd
         ) {
-            addNotification("Fin de Jornada Laboral", `Ya has cumplido tu horario de salida (${mockUser.schedule.end}).`, "success");
+            addNotification("Fin de Jornada Laboral", `Ya has cumplido tu horario de salida (${user.schedule_end}).`, "success");
             setDailyNotificationsSent(prev => ({ ...prev, workEnd: true }));
         }
 
-    }, [status, dailyNotificationsSent, addNotification]);
+    }, [status, dailyNotificationsSent, addNotification, user]);
 
     useEffect(() => {
         const interval = setInterval(checkWorkSchedule, 60000);

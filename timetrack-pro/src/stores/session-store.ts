@@ -1,105 +1,110 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { WorkSession, Break } from '@/types/models';
-import { mockRecentSessions } from '@/mocks/mock-data';
+import { SessionService } from '@/services/session-service';
+import { BreakService } from '@/services/break-service';
 
 interface SessionState {
     currentSession: WorkSession | null;
     currentBreak: Break | null;
-    pastSessions: any[]; // Using any for simplicity with mock data
+    pastSessions: any[];
     seconds: number;
     breakSeconds: number;
     status: 'idle' | 'running' | 'paused' | 'break';
+    isLoading: boolean;
 
-    startSession: () => void;
-    stopSession: () => void;
-    startBreak: (type: string) => void;
-    endBreak: () => void;
+    startSession: (userId: string) => Promise<void>;
+    stopSession: (notes?: string) => Promise<void>;
+    startBreak: (type: string) => Promise<void>;
+    endBreak: () => Promise<void>;
     tick: () => void;
+    loadSessions: (userId: string) => Promise<void>;
+    loadActiveSession: (userId: string) => Promise<void>;
+    reset: () => void;
 }
-
-// Fallback for random UUID
-const getUUID = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return Math.random().toString(36).substring(2, 15);
-};
 
 export const useSessionStore = create<SessionState>()(
     persist(
         (set, get) => ({
             currentSession: null,
             currentBreak: null,
-            pastSessions: mockRecentSessions,
+            pastSessions: [],
             seconds: 0,
             breakSeconds: 0,
             status: 'idle',
+            isLoading: false,
 
-            startSession: () => {
-                const now = new Date();
-                set({
-                    status: 'running',
-                    seconds: 0,
-                    breakSeconds: 0,
-                    currentSession: {
-                        id: getUUID(),
-                        user_id: 'user-1',
-                        start_time: now.toISOString(),
-                        end_time: null,
-                        total_break_minutes: 0,
-                        net_work_minutes: 0,
-                        notes: '', // Keep for type compatibility but unused in UI
-                        created_at: now.toISOString(),
-                        updated_at: now.toISOString()
-                    } as any
-                });
-            },
-
-            stopSession: () => {
-                const state = get();
-                if (state.currentSession) {
-                    const now = new Date();
-                    const newPastSession = {
-                        id: state.currentSession.id,
-                        date: now.toISOString().split('T')[0],
-                        startTime: new Date(state.currentSession.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                        endTime: now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                        totalMinutes: Math.floor(state.seconds / 60) + Math.floor(state.breakSeconds / 60),
-                        breakMinutes: Math.floor(state.breakSeconds / 60),
-                        status: "completed",
-                    };
+            startSession: async (userId: string) => {
+                set({ isLoading: true });
+                const session = await SessionService.startSession(userId);
+                if (session) {
                     set({
-                        pastSessions: [newPastSession, ...state.pastSessions],
-                        status: 'idle',
-                        currentSession: null,
-                        currentBreak: null,
+                        status: 'running',
                         seconds: 0,
                         breakSeconds: 0,
+                        currentSession: session,
+                        isLoading: false,
                     });
+                } else {
+                    set({ isLoading: false });
+                }
+            },
+
+            stopSession: async (notes?: string) => {
+                const state = get();
+                if (state.currentSession) {
+                    set({ isLoading: true });
+                    const updatedSession = await SessionService.endSession(state.currentSession.id, notes);
+
+                    if (updatedSession) {
+                        const now = new Date();
+                        const newPastSession = {
+                            id: updatedSession.id,
+                            date: now.toISOString().split('T')[0],
+                            startTime: new Date(updatedSession.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                            endTime: now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                            totalMinutes: updatedSession.net_work_minutes || Math.floor(state.seconds / 60),
+                            breakMinutes: updatedSession.total_break_minutes || Math.floor(state.breakSeconds / 60),
+                            status: "completed",
+                        };
+                        set({
+                            pastSessions: [newPastSession, ...state.pastSessions],
+                            status: 'idle',
+                            currentSession: null,
+                            currentBreak: null,
+                            seconds: 0,
+                            breakSeconds: 0,
+                            isLoading: false,
+                        });
+                    } else {
+                        set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0, isLoading: false });
+                    }
                 } else {
                     set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0 });
                 }
             },
 
-            startBreak: (type) => {
-                set({
-                    status: 'break',
-                    currentBreak: {
-                        id: getUUID(),
-                        work_session_id: get().currentSession?.id || '',
-                        break_type: type as any,
-                        start_time: new Date().toISOString(),
-                        end_time: null,
-                        duration_minutes: 0,
-                        notes: null,
-                        created_at: new Date().toISOString()
-                    }
-                });
+            startBreak: async (type: string) => {
+                const session = get().currentSession;
+                if (!session) return;
+
+                const breakRecord = await BreakService.startBreak(session.id, type as Break['break_type']);
+                if (breakRecord) {
+                    set({
+                        status: 'break',
+                        currentBreak: breakRecord,
+                    });
+                }
             },
 
-            endBreak: () => {
-                set({ status: 'running', currentBreak: null });
+            endBreak: async () => {
+                const state = get();
+                if (!state.currentBreak || !state.currentSession) return;
+
+                const updatedBreak = await BreakService.endBreak(state.currentBreak.id, state.currentSession.id);
+                if (updatedBreak) {
+                    set({ status: 'running', currentBreak: null });
+                }
             },
 
             tick: () => {
@@ -109,7 +114,56 @@ export const useSessionStore = create<SessionState>()(
                 } else if (status === 'break') {
                     set((state) => ({ breakSeconds: state.breakSeconds + 1 }));
                 }
-            }
+            },
+
+            loadSessions: async (userId: string) => {
+                set({ isLoading: true });
+                const sessions = await SessionService.getRecentSessions(userId, 20);
+                const formattedSessions = sessions
+                    .filter(s => s.status === 'completed' && s.end_time)
+                    .map(s => ({
+                        id: s.id,
+                        date: new Date(s.start_time).toISOString().split('T')[0],
+                        startTime: new Date(s.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                        endTime: s.end_time ? new Date(s.end_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+                        totalMinutes: s.net_work_minutes || 0,
+                        breakMinutes: s.total_break_minutes || 0,
+                        status: s.status,
+                    }));
+                set({ pastSessions: formattedSessions, isLoading: false });
+            },
+
+            loadActiveSession: async (userId: string) => {
+                const session = await SessionService.getActiveSession(userId);
+                if (session) {
+                    // Calculate elapsed time
+                    const startTime = new Date(session.start_time).getTime();
+                    const now = Date.now();
+                    const elapsedSeconds = Math.floor((now - startTime) / 1000);
+
+                    // Check for active break
+                    const activeBreak = await BreakService.getActiveBreak(session.id);
+
+                    set({
+                        currentSession: session,
+                        status: activeBreak ? 'break' : session.status === 'break' ? 'break' : 'running',
+                        seconds: elapsedSeconds,
+                        currentBreak: activeBreak,
+                    });
+                }
+            },
+
+            reset: () => {
+                set({
+                    currentSession: null,
+                    currentBreak: null,
+                    pastSessions: [],
+                    seconds: 0,
+                    breakSeconds: 0,
+                    status: 'idle',
+                    isLoading: false,
+                });
+            },
         }),
         {
             name: 'timetrack-session-storage',

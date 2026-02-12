@@ -3,24 +3,67 @@
 import { useEffect, useState, useMemo } from "react";
 import { HistoryFilters } from "@/components/history/history-filters";
 import { HistoryTable } from "@/components/history/history-table";
+
 import { usePageStore } from "@/stores/page-store";
-import { motion } from "framer-motion";
-import { mockHistorySessions } from "@/mocks/mock-data";
+import { useUserStore } from "@/stores/user-store";
+import { useSessionStore } from "@/stores/session-store";
+import { ReportService } from "@/services/report-service";
+import { SessionService } from "@/services/session-service";
+import { motion, AnimatePresence } from "framer-motion";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export-utils";
 import { formatHoursMinutes } from "@/lib/utils";
+import { startOfYear, endOfYear } from "date-fns";
 
 export default function HistoryPage() {
+    const user = useUserStore(state => state.user);
+    const { currentSession } = useSessionStore(); // To trigger refresh if session ends
     const { title, subtitle, setTitle } = usePageStore();
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Historial", "Todas tus jornadas de trabajo registradas.");
     }, [setTitle]);
 
+    const fetchSessions = async () => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            // Default range: Current Year for now, or just wider
+            const start = startDate ? new Date(startDate) : startOfYear(new Date());
+            const end = endDate ? new Date(endDate) : endOfYear(new Date());
+
+            // If no filters, maybe fetch last 100 sessions? 
+            // For simplicity, using getSessionsByDateRange which we already have. 
+            // If user explicitly sets range, use it. If not, use reasonable default.
+
+            // Adjust end date to cover the full day if manually set
+            if (endDate) end.setHours(23, 59, 59, 999);
+
+            const fetchedSessions = await ReportService.getSessionsByDateRange(
+                user.id,
+                start.toISOString(),
+                end.toISOString()
+            );
+
+            setSessions(fetchedSessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+        } catch (error) {
+            console.error("Failed to fetch history:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSessions();
+    }, [user, currentSession?.status, startDate, endDate]); // Trigger on filter change or session end
+
     const filteredSessions = useMemo(() => {
-        let result = [...mockHistorySessions];
+        let result = [...sessions];
 
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -35,20 +78,11 @@ export default function HistoryPage() {
             });
         }
 
-        if (startDate) {
-            const start = new Date(startDate).getTime();
-            result = result.filter(session => new Date(session.date).getTime() >= start);
-        }
+        // Date filters are handled in fetch for efficiency, but if we want strictly client side filtering on the fetched set:
+        // Already handled by fetch parameters.
 
-        if (endDate) {
-            const end = new Date(endDate).getTime();
-            result = result.filter(session => new Date(session.date).getTime() <= end);
-        }
-
-        return result.sort((a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-    }, [startDate, endDate, searchTerm]);
+        return result;
+    }, [sessions, searchTerm]);
 
     const handleExport = (format: 'CSV' | 'Excel' | 'PDF') => {
         const exportData = filteredSessions.map(s => ({
@@ -67,22 +101,30 @@ export default function HistoryPage() {
         if (format === 'PDF') exportToPDF(exportData, fileName, 'Reporte de Historial de Jornadas');
     };
 
+    const handleDeleteSession = async (sessionId: string) => {
+        if (!user) return;
+        await SessionService.deleteSession(sessionId);
+        // Refresh local state
+        setSessions(prev => prev.filter(s => s.id !== sessionId));
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="space-y-10"
+            className="space-y-6 lg:space-y-10"
         >
             {/* Header Section */}
-            <div>
-                <h1 className="text-4xl font-black tracking-tight text-slate-800 dark:text-white">{title}</h1>
+            <div className="px-2 sm:px-0">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-800 dark:text-white">{title}</h1>
                 {subtitle && (
-                    <p className="mt-2 text-base font-bold text-slate-400 dark:text-slate-500">{subtitle}</p>
+                    <p className="mt-1 sm:mt-2 text-sm sm:text-base font-bold text-slate-400 dark:text-slate-500">{subtitle}</p>
                 )}
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-6 lg:space-y-8 px-1 sm:px-0">
+
                 <HistoryFilters
                     startDate={startDate}
                     setStartDate={setStartDate}
@@ -93,9 +135,10 @@ export default function HistoryPage() {
                     onExport={handleExport}
                 />
 
-                <div className="rounded-[1.5rem] bg-[#F7F8F9] dark:bg-slate-900 p-1 border border-slate-100/50 dark:border-slate-800/50">
+                <div className="rounded-[2rem] bg-[#F7F8F9] dark:bg-slate-900 p-1 border border-slate-100/50 dark:border-slate-800/50">
                     <HistoryTable
                         filteredSessions={filteredSessions}
+                        onDeleteSession={handleDeleteSession}
                     />
                 </div>
             </div>

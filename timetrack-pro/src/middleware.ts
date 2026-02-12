@@ -60,10 +60,6 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // Mock bypass for development/testing
-    const mockSession = request.cookies.get('sb-mock-token')?.value === 'true';
-    const activeUser = user || (mockSession ? { id: 'mock-user', email: 'mock@example.com' } : null);
-
     const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
         request.nextUrl.pathname.startsWith('/history') ||
         request.nextUrl.pathname.startsWith('/calendar') ||
@@ -71,14 +67,14 @@ export async function middleware(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/analytics') ||
         request.nextUrl.pathname.startsWith('/settings');
 
-    if (!activeUser && isProtectedRoute) {
+    if (!user && isProtectedRoute) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
     const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
         request.nextUrl.pathname.startsWith('/register');
 
-    if (activeUser && isAuthRoute) {
+    if (user && isAuthRoute) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 

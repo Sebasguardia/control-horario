@@ -1,6 +1,6 @@
 "use client";
 
-import { mockWeeklyData, mockBreakTypes, mockProductivityData, mockMonthlyData } from "@/mocks/mock-data";
+import { useEffect, useState } from "react";
 import {
     BarChart,
     Bar,
@@ -17,6 +17,10 @@ import {
     Area,
     AreaChart,
 } from "recharts";
+import { useUserStore } from "@/stores/user-store";
+import { ReportService } from "@/services/report-service";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, startOfMonth, endOfMonth, eachWeekOfInterval } from "date-fns";
+import { es } from "date-fns/locale";
 
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
     if (active && payload && payload.length) {
@@ -34,17 +38,81 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export function AnalyticsCharts() {
+    const user = useUserStore((state) => state.user);
+    const [weeklyData, setWeeklyData] = useState<any[]>([]);
+    const [breakData, setBreakData] = useState<any[]>([]);
+    const [productivityData, setProductivityData] = useState<any[]>([]);
+    const [monthlyData, setMonthlyData] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        async function fetchData() {
+            const now = new Date();
+            const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+            const weeklyReport = await ReportService.getWeeklyReport(user!.id, weekStart);
+
+            // 1. Weekly Hours Data
+            const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+            const wData = days.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const dayData = weeklyReport.sessionsPerDay.find(d => d.date === dateStr);
+                return {
+                    day: format(day, 'EEE', { locale: es }).replace('.', ''),
+                    hours: dayData ? Math.round(dayData.totalMinutes / 60 * 10) / 10 : 0
+                };
+            });
+            setWeeklyData(wData);
+
+            // 2. Break Distribution Data
+            const monthStart = startOfMonth(now);
+            const bData = await ReportService.getBreakDistribution(user!.id, monthStart.toISOString(), now.toISOString());
+            setBreakData(bData);
+
+            // 3. Productivity Trend (Hours / Expected)
+            const pData = wData.map(d => ({
+                day: d.day,
+                productivity: Math.min(100, Math.round((d.hours / (user?.expected_hours_per_day || 8)) * 100))
+            }));
+            setProductivityData(pData);
+
+            // 4. Monthly Trend (Using real monthly data grouped by week)
+            const monthEnd = endOfMonth(now);
+            const report = await ReportService.getReportByDateRange(user!.id, monthStart.toISOString(), monthEnd.toISOString());
+            const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: 1 });
+
+            const mData = weeks.map((weekStart, index) => {
+                const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+                const weekSessions = report.sessionsPerDay.filter(day => {
+                    const d = new Date(day.date);
+                    return d >= weekStart && d <= weekEnd;
+                });
+                const totalMinutes = weekSessions.reduce((acc, curr) => acc + curr.totalMinutes, 0);
+                return {
+                    week: `Sem ${index + 1}`,
+                    hours: Math.round(totalMinutes / 60 * 10) / 10,
+                    target: (user?.expected_hours_per_day || 8) * 5
+                };
+            });
+            setMonthlyData(mData);
+        }
+
+        fetchData();
+    }, [user]);
+
     return (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-2">
             {/* Productivity Trend */}
-            <div className="rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-                <div className="mb-6">
-                    <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Productividad Semanal</h3>
-                    <p className="text-sm font-bold text-slate-400 dark:text-slate-500">Tendencia de eficiencia diaria</p>
+            <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
+                <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-800 dark:text-white">Productividad Semanal</h3>
+                    <p className="text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500">Tendencia de eficiencia diaria</p>
                 </div>
-                <div className="h-64 w-full">
+                <div className="h-56 sm:h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={mockProductivityData}>
+                        <AreaChart data={productivityData}>
                             <defs>
                                 <linearGradient id="prodGradient" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#1A5235" stopOpacity={0.1} />
@@ -84,17 +152,17 @@ export function AnalyticsCharts() {
             </div>
 
             {/* Break Distribution */}
-            <div className="rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-                <div className="mb-6">
-                    <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Distribución de Pausas</h3>
-                    <p className="text-sm font-bold text-slate-400 dark:text-slate-500">Tipos de descanso</p>
+            <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
+                <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-800 dark:text-white">Distribución de Pausas</h3>
+                    <p className="text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500">Tipos de descanso</p>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8">
                     <div className="h-56 w-56 relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={mockBreakTypes}
+                                    data={breakData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -104,7 +172,7 @@ export function AnalyticsCharts() {
                                     cornerRadius={10}
                                     stroke="none"
                                 >
-                                    {mockBreakTypes.map((entry, index) => (
+                                    {breakData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
@@ -115,11 +183,11 @@ export function AnalyticsCharts() {
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="text-2xl font-black text-slate-800 dark:text-white">45m</span>
+                            <span className="text-2xl font-black text-slate-800 dark:text-white">Total</span>
                         </div>
                     </div>
                     <div className="space-y-4 w-full sm:w-auto">
-                        {mockBreakTypes.map((type) => (
+                        {breakData.map((type) => (
                             <div key={type.name} className="flex items-center gap-3">
                                 <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: type.color }} />
                                 <div className="flex flex-col">
@@ -133,14 +201,14 @@ export function AnalyticsCharts() {
             </div>
 
             {/* Daily Hours */}
-            <div className="rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-                <div className="mb-6">
-                    <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Horas Diarias</h3>
-                    <p className="text-sm font-bold text-slate-400 dark:text-slate-500">Vs Meta (8h)</p>
+            <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
+                <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-800 dark:text-white">Horas Diarias</h3>
+                    <p className="text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500">Vs Meta (8h)</p>
                 </div>
-                <div className="h-64">
+                <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={mockWeeklyData} barSize={40}>
+                        <BarChart data={weeklyData} barSize={40}>
                             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} vertical={false} />
                             <XAxis
                                 dataKey="day"
@@ -172,15 +240,15 @@ export function AnalyticsCharts() {
                 </div>
             </div>
 
-            {/* Monthly Trend - Redesigned to be distinct */}
-            <div className="rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-                <div className="mb-6">
-                    <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Evolución Semanal</h3>
-                    <p className="text-sm font-bold text-slate-400 dark:text-slate-500">Performance del mes</p>
+            {/* Monthly Trend */}
+            <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
+                <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-800 dark:text-white">Evolución Semanal</h3>
+                    <p className="text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500">Performance del mes</p>
                 </div>
-                <div className="h-64">
+                <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={mockMonthlyData}>
+                        <LineChart data={monthlyData}>
                             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} vertical={false} />
                             <XAxis
                                 dataKey="week"

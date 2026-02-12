@@ -3,14 +3,63 @@
 import { useEffect, useRef } from "react";
 import { useSessionStore } from "@/stores/session-store";
 import { useConfigStore } from "@/stores/config-store";
+import { useUserStore } from "@/stores/user-store";
 import { useNotification } from "@/contexts/notification-context";
-import { mockStats } from "@/mocks/mock-data";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SessionManager() {
     const status = useSessionStore((state) => state.status);
     const config = useConfigStore();
+    const loadUser = useUserStore((state) => state.loadUser);
+    const user = useUserStore((state) => state.user);
+    const loadActiveSession = useSessionStore((state) => state.loadActiveSession);
+    const loadSessions = useSessionStore((state) => state.loadSessions);
     const { addNotification } = useNotification();
     const lastNotified = useRef<Record<string, number>>({});
+    const initRef = useRef(false);
+
+    useEffect(() => {
+        const supabase = createClient();
+
+        // 1. Function to load everything for a user
+        const loadAllData = async (userId: string) => {
+            // Already initialized for this userId? Skip if we want, or just reload
+            // Let's reload to be safe but mark as initialized
+            initRef.current = true;
+
+            await Promise.all([
+                loadUser(), // Ensure profile is loaded
+                loadActiveSession(userId),
+                loadSessions(userId)
+            ]);
+        };
+
+        // 2. Initial check
+        const checkInitialSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user && !initRef.current) {
+                loadAllData(session.user.id);
+            } else if (!session) {
+                // If no session, at least try to loadUser to handle "public" views if any
+                loadUser();
+            }
+        };
+
+        checkInitialSession();
+
+        // 3. Listen for changes (Login, Logout, Token Refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (session?.user) {
+                if (event === 'SIGNED_IN' || !initRef.current) {
+                    loadAllData(session.user.id);
+                }
+            } else if (event === 'SIGNED_OUT') {
+                initRef.current = false;
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [loadUser, loadActiveSession, loadSessions]);
 
     // Timer Tick
     useEffect(() => {

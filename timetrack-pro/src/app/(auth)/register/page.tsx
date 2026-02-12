@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useNotification } from "@/contexts/notification-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
@@ -15,6 +16,9 @@ export default function RegisterPage() {
     const router = useRouter();
     const { addNotification } = useNotification();
     const { theme, setTheme } = useTheme();
+    const supabase = createClient();
+
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     useEffect(() => setMounted(true), []);
 
@@ -23,9 +27,50 @@ export default function RegisterPage() {
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        addNotification("¡Cuenta Creada!", "Bienvenido a TimeTrack Pro.", "success");
-        router.push("/dashboard");
+
+        const formData = new FormData(e.target as HTMLFormElement);
+        const fullName = formData.get('full_name') as string;
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
+        const confirmPassword = formData.get('confirm_password') as string;
+        const position = formData.get('position') as string;
+        const department = formData.get('department') as string;
+        const city = formData.get('city') as string;
+        const gender = formData.get('gender') as string;
+
+        if (password !== confirmPassword) {
+            addNotification("Error", "Las contraseñas no coinciden.", "error");
+            setLoading(false);
+            return;
+        }
+
+        if (password.length < 6) {
+            addNotification("Error", "La contraseña debe tener al menos 6 caracteres.", "error");
+            setLoading(false);
+            return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    position: position || null,
+                    department: department || null,
+                    city: city || null,
+                    gender: gender || 'No especificado',
+                }
+            }
+        });
+
+        if (error) {
+            addNotification("Error", error.message, "error");
+            setLoading(false);
+            return;
+        }
+
+        setShowSuccessModal(true);
         setLoading(false);
     };
 
@@ -50,33 +95,33 @@ export default function RegisterPage() {
             </div>
 
             {/* CONTROLES SUPERIORES */}
-            <div className="absolute right-10 top-10 z-40 flex items-center gap-4">
+            <div className="absolute right-6 top-6 sm:right-10 sm:top-10 z-40 flex items-center gap-4">
                 <button
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
+                    className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
                 >
-                    {theme === "dark" ? <Sun size={20} className="text-emerald-500" /> : <Moon size={20} />}
+                    {theme === "dark" ? <Sun size={18} className="text-emerald-500 sm:size-[20px]" /> : <Moon size={18} className="sm:size-[20px]" />}
                 </button>
                 <div className="flex items-center gap-2">
                     <img
                         src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
                         alt="Logo"
-                        className="h-14 w-auto object-contain dark:brightness-200"
+                        className="h-10 sm:h-14 w-auto object-contain dark:brightness-200"
                     />
                 </div>
             </div>
 
-            <div className="absolute left-10 top-10 z-40">
+            <div className="absolute left-6 top-6 sm:left-10 sm:top-10 z-40">
                 <Link
                     href="/"
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
+                    className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xl transition-all hover:scale-110 active:scale-95"
                 >
-                    <ArrowLeft size={20} />
+                    <ArrowLeft size={18} className="sm:size-[20px]" />
                 </Link>
             </div>
 
             {/* TARJETA */}
-            <div className="relative z-10 flex min-h-screen items-center justify-start px-6 lg:px-24">
+            <div className="relative z-10 flex min-h-screen items-center justify-center lg:justify-start px-6 lg:px-24 pt-24 pb-12 lg:py-0">
                 <motion.div
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -95,6 +140,7 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Nombre Completo</label>
                                 <input
                                     type="text"
+                                    name="full_name"
                                     required
                                     placeholder="Tu Nombre"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
@@ -104,6 +150,7 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Email</label>
                                 <input
                                     type="email"
+                                    name="email"
                                     required
                                     placeholder="correo@empresa.com"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
@@ -114,13 +161,14 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Cargo</label>
                                 <input
                                     type="text"
+                                    name="position"
                                     placeholder="Ej: Developer"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Departamento</label>
-                                <select className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 appearance-none">
+                                <select name="department" className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 appearance-none">
                                     <option value="">Seleccionar...</option>
                                     <option value="tech">Tecnología</option>
                                     <option value="hr">RRHH</option>
@@ -132,13 +180,14 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Ciudad</label>
                                 <input
                                     type="text"
+                                    name="city"
                                     placeholder="Lima"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Género</label>
-                                <select className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 appearance-none">
+                                <select name="gender" className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 appearance-none">
                                     <option value="">No especificado</option>
                                     <option value="male">Masculino</option>
                                     <option value="female">Femenino</option>
@@ -149,6 +198,7 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Contraseña</label>
                                 <input
                                     type="password"
+                                    name="password"
                                     required
                                     placeholder="••••••••"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
@@ -158,6 +208,7 @@ export default function RegisterPage() {
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Repetir</label>
                                 <input
                                     type="password"
+                                    name="confirm_password"
                                     required
                                     placeholder="••••••••"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
@@ -193,6 +244,53 @@ export default function RegisterPage() {
                     </form>
                 </motion.div>
             </div>
+
+            {/* MODAL DE ÉXITO Y CONFIRMACIÓN */}
+            <AnimatePresence>
+                {showSuccessModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-sm bg-slate-900/60"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-white/20"
+                        >
+                            <div className="relative h-32 w-full bg-[#1A5235] flex items-center justify-center">
+                                <div className="absolute top-0 right-0 p-8 opacity-10">
+                                    <Timer size={120} className="text-white" />
+                                </div>
+                                <div className="h-20 w-20 rounded-3xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white shadow-inner">
+                                    <Check size={40} className="stroke-[3]" />
+                                </div>
+                            </div>
+
+                            <div className="p-10 text-center">
+                                <h3 className="text-3xl font-black text-slate-800 dark:text-white mb-4 tracking-tight">¡Casi hemos terminado!</h3>
+                                <p className="text-base font-bold text-slate-400 dark:text-slate-500 leading-relaxed mb-8">
+                                    Te hemos enviado un correo de confirmación. Por favor, revisa tu <span className="text-slate-800 dark:text-white">bandeja de entrada</span> para activar tu cuenta.
+                                </p>
+
+                                <button
+                                    onClick={() => router.push("/login")}
+                                    className="w-full rounded-2xl bg-[#1A5235] py-4 text-sm font-black text-white uppercase tracking-widest shadow-xl shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-95"
+                                >
+                                    Ir al Inicio de Sesión
+                                </button>
+
+                                <p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600">
+                                    TimeTrack Pro • Sistema de Gestión
+                                </p>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
+

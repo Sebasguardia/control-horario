@@ -47,14 +47,14 @@ export function ReportFilters({
     ];
 
     return (
-        <div className="flex flex-wrap items-center gap-4 w-full">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 w-full">
             {/* Period Segmented Control */}
-            <div className="inline-flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1">
+            <div className="inline-flex rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 w-full sm:w-auto">
                 {ranges.map((range) => (
                     <button
                         key={range.id}
                         onClick={() => setDateRange(range.id)}
-                        className={`relative flex items-center justify-center rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all ${dateRange === range.id
+                        className={`relative flex-1 sm:flex-none flex items-center justify-center rounded-lg sm:rounded-xl px-4 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all ${dateRange === range.id
                             ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
                             : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                             }`}
@@ -65,37 +65,38 @@ export function ReportFilters({
             </div>
 
             {/* Navigation & Label */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
                 <button
                     onClick={() => onNavigate(-1)}
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-all active:scale-90 shadow-sm"
+                    className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-all active:scale-90 shadow-sm"
                 >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
 
-                <div className="flex h-12 min-w-[180px] items-center justify-center gap-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 text-sm font-black text-slate-700 dark:text-slate-200 shadow-sm">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    <span className="capitalize">{periodLabel}</span>
+                <div className="flex h-11 sm:h-12 flex-1 sm:min-w-[180px] items-center justify-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 sm:px-5 text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 shadow-sm">
+                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                    <span className="capitalize truncate">{periodLabel}</span>
                 </div>
 
                 <button
                     onClick={() => onNavigate(1)}
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-all active:scale-90 shadow-sm"
+                    className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-all active:scale-90 shadow-sm"
                 >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
             </div>
 
             {/* Download/Export Section */}
-            <div className="ml-auto" ref={downloadRef}>
+            <div className="w-full sm:w-auto sm:ml-auto" ref={downloadRef}>
                 <div className="relative">
                     <button
                         onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
-                        className="flex h-12 items-center gap-3 rounded-2xl bg-slate-900 dark:bg-white px-6 text-sm font-bold text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-slate-900/10 transition-all hover:bg-black dark:hover:bg-slate-100 hover:-translate-y-0.5 active:scale-95"
+                        className="flex h-11 sm:h-12 w-full sm:w-auto items-center justify-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-slate-900 dark:bg-white px-5 sm:px-6 text-xs sm:text-sm font-bold text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-slate-900/10 transition-all hover:bg-black dark:hover:bg-slate-100 hover:-translate-y-0.5 active:scale-95"
                     >
-                        <Download className="h-4 w-4" />
-                        Exportar Reporte
-                        <ChevronDown className={`h-4 w-4 transition-transform ${downloadMenuOpen ? "rotate-180" : ""}`} />
+                        <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Exportar Reporte</span>
+                        <span className="sm:hidden">Exportar</span>
+                        <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform ${downloadMenuOpen ? "rotate-180" : ""}`} />
                     </button>
 
                     <AnimatePresence>

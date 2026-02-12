@@ -1,0 +1,22 @@
+src/app/(auth)/register/page.tsx(69,52): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/app/(dashboard)/calendar/page.tsx(44,22): error TS2741: Property 'selectedDay' is missing in type '{ currentDate: Date; setCurrentDate: Dispatch<SetStateAction<Date>>; setSelectedDay: Dispatch<SetStateAction<string | null>>; }' but required in type 'CalendarViewProps'.
+src/app/(dashboard)/calendar/page.tsx(52,14): error TS2741: Property 'session' is missing in type '{ selectedDay: string | null; setSelectedDay: Dispatch<SetStateAction<string | null>>; }' but required in type 'DayDetailModalProps'.
+src/app/(dashboard)/history/page.tsx(46,57): error TS2339: Property 'getSessionsByDateRange' does not exist on type '{ getReportByDateRange(userId: string, startDate: string, endDate: string): Promise<ReportData>; getWeeklyReport(userId: string, weekStart: Date): Promise<...>; getMonthlyReport(userId: string, monthStart: Date): Promise<...>; }'.
+src/app/(dashboard)/history/page.tsx(52,47): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/app/(dashboard)/history/page.tsx(52,50): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/app/(dashboard)/history/page.tsx(62,31): error TS2339: Property 'status' does not exist on type 'WorkSession'.
+src/app/(dashboard)/reports/page.tsx(79,61): error TS2339: Property 'getSessionsByDateRange' does not exist on type '{ getReportByDateRange(userId: string, startDate: string, endDate: string): Promise<ReportData>; getWeeklyReport(userId: string, weekStart: Date): Promise<...>; getMonthlyReport(userId: string, monthStart: Date): Promise<...>; }'.
+src/app/(dashboard)/reports/page.tsx(85,39): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/app/(dashboard)/reports/page.tsx(85,42): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/calendar/calendar-view.tsx(66,50): error TS2339: Property 'getSessionsByDateRange' does not exist on type '{ getReportByDateRange(userId: string, startDate: string, endDate: string): Promise<ReportData>; getWeeklyReport(userId: string, weekStart: Date): Promise<...>; getMonthlyReport(userId: string, monthStart: Date): Promise<...>; }'.
+src/components/dashboard/quick-stats.tsx(130,31): error TS2339: Property 'status' does not exist on type 'WorkSession'.
+src/components/dashboard/weekly-chart.tsx(74,31): error TS2339: Property 'status' does not exist on type 'WorkSession'.
+src/services/break-service.ts(11,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/services/break-service.ts(36,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/services/break-service.ts(49,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/services/session-service.ts(27,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/services/session-service.ts(43,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/services/user-service.ts(42,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/stores/session-store.ts(122,36): error TS2339: Property 'status' does not exist on type 'WorkSession'.
+src/stores/session-store.ts(130,35): error TS2339: Property 'status' does not exist on type 'WorkSession'.
+src/stores/session-store.ts(148,65): error TS2339: Property 'status' does not exist on type 'WorkSession'.

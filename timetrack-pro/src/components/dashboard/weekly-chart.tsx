@@ -1,6 +1,6 @@
 "use client";
 
-import { mockWeeklyData } from "@/mocks/mock-data";
+import { useEffect, useState } from "react";
 import {
     BarChart,
     Bar,
@@ -11,6 +11,9 @@ import {
     ResponsiveContainer,
     Cell
 } from "recharts";
+import { useUserStore } from "@/stores/user-store";
+import { ReportService } from "@/services/report-service";
+import { useSessionStore } from "@/stores/session-store";
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
     if (active && payload && payload.length) {
@@ -30,53 +33,96 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function WeeklyChart() {
-    return (
-        <div className="flex h-[450px] flex-col rounded-[1.5rem] bg-white dark:bg-slate-900 p-10 border border-slate-50 dark:border-slate-800 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-black/50">
-            <div className="mb-10 flex items-center justify-between">
-                <div>
-                    <h3 className="text-xl font-black tracking-tight text-slate-800 dark:text-white uppercase tracking-widest text-sm">Resumen Semanal</h3>
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-1 capitalize">Análisis de horas por jornada</p>
-                </div>
-                <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full bg-[#166534]" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Jornada</span>
-                    </div>
+    const user = useUserStore(state => state.user);
+    const { currentSession } = useSessionStore(); // To trigger re-fetch
+    const [data, setData] = useState<any[]>([]);
+    const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+    useEffect(() => {
+        if (!user) return;
+
+        async function fetchData() {
+            setIsLoadingStats(true);
+            try {
+                const now = new Date();
+                const weekStart = new Date(now);
+                const day = weekStart.getDay();
+                const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+                weekStart.setDate(diff);
+                weekStart.setHours(0, 0, 0, 0);
+
+                const report = await ReportService.getWeeklyReport(user!.id, weekStart);
+
+                // Transform sessionsPerDay to chart format
+                const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+                const chartData = days.map((dayName, index) => {
+                    const targetDate = new Date(weekStart);
+                    targetDate.setDate(weekStart.getDate() + index);
+                    const dateStr = targetDate.toISOString().split('T')[0];
+
+                    const dayData = report.sessionsPerDay.find(d => d.date === dateStr);
+                    const hours = dayData ? Math.round(dayData.totalMinutes / 60 * 10) / 10 : 0;
+
+                    return {
+                        name: dayName,
+                        hours: hours,
+                        date: dateStr
+                    };
+                });
+
+                setData(chartData);
+            } catch (error) {
+                console.error("Error fetching chart data:", error);
+            } finally {
+                setIsLoadingStats(false);
+            }
+        }
+
+        if (user) {
+            fetchData();
+        } else {
+            setIsLoadingStats(false);
+        }
+    }, [user, currentSession?.status]);
+
+    if (isLoadingStats && data.length === 0 && user) {
+        const skeletonHeights = ['60%', '40%', '80%', '50%', '70%', '45%', '90%'];
+        return (
+            <div className="rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-sm h-full animate-pulse border border-slate-50 dark:border-slate-800">
+                <div className="h-6 w-48 bg-slate-100 dark:bg-slate-800 rounded mb-8" />
+                <div className="flex items-end justify-between h-[300px] gap-4 px-4">
+                    {skeletonHeights.map((height, i) => (
+                        <div key={i} className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-xl" style={{ height }} />
+                    ))}
                 </div>
             </div>
+        );
+    }
 
-            <div className="flex-1">
+    return (
+        <div className="rounded-[2rem] sm:rounded-[2.5rem] bg-white dark:bg-slate-900 p-5 sm:p-8 shadow-sm h-full border border-slate-50 dark:border-slate-800">
+            <h3 className="mb-4 sm:mb-6 text-lg sm:text-xl font-bold tracking-tight text-slate-800 dark:text-white">Rendimiento Semanal</h3>
+            <div className="h-[300px] sm:h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockWeeklyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.2} />
+                    <BarChart data={data} barSize={20}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
                         <XAxis
-                            dataKey="day"
+                            dataKey="name"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }}
-                            dy={15}
+                            tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                            dy={10}
                         />
                         <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }}
+                            tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                            dx={-10}
                         />
-                        <Tooltip
-                            content={<CustomTooltip />}
-                            cursor={{ fill: "#1e293b", opacity: 0.1, radius: 20 }}
-                        />
-                        <Bar
-                            dataKey="hours"
-                            radius={[20, 20, 20, 20]}
-                            barSize={50}
-                        >
-                            {mockWeeklyData.map((_entry, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={index % 2 === 0 ? "#166534" : "#4ade80"}
-                                    fillOpacity={0.9}
-                                    className="transition-all duration-500 hover:fill-opacity-100"
-                                />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F1F5F9', opacity: 0.4 }} />
+                        <Bar dataKey="hours" radius={[6, 6, 6, 6]}>
+                            {data.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.hours >= (user?.expected_hours_per_day || 8) ? '#166534' : '#cbd5e1'} />
                             ))}
                         </Bar>
                     </BarChart>

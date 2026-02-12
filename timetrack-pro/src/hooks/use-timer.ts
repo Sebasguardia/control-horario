@@ -4,7 +4,7 @@ import { useSessionStore } from "@/stores/session-store";
 import { useMemo } from "react";
 
 export type TimerStatus = "idle" | "running" | "paused" | "break";
-export type BreakType = "Almuerzo" | "Descanso" | "Personal";
+export type BreakType = "lunch" | "short" | "personal";
 
 export function useTimer() {
     // Using selectors to ensure components only re-render when necessary

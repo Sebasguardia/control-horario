@@ -5,8 +5,14 @@ export interface User {
     email: string;
     full_name: string | null;
     avatar_url: string | null;
+    gender: string | null;
+    city: string | null;
+    position: string | null;
+    department: string | null;
     expected_hours_per_day: number;
     timezone: string;
+    schedule_start: string;
+    schedule_end: string;
     created_at: string;
     updated_at: string;
 }
@@ -22,6 +28,7 @@ export interface WorkSession {
     location_lat?: number;
     location_lng?: number;
     project_id?: string;
+    status: 'active' | 'completed' | 'paused' | 'break';
     created_at: string;
     updated_at: string;
 }

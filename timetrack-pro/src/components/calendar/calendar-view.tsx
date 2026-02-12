@@ -1,6 +1,5 @@
 "use client";
 
-import { mockHistorySessions, mockUser } from "@/mocks/mock-data";
 import { formatHoursMinutes, cn } from "@/lib/utils";
 import {
     ChevronLeft,
@@ -12,15 +11,20 @@ import {
     Calendar as CalendarIcon,
     AlertCircle
 } from "lucide-react";
-import { Dispatch, SetStateAction, useMemo } from "react";
-import { motion } from "framer-motion";
+import { Dispatch, SetStateAction, useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useUserStore } from "@/stores/user-store";
+import { ReportService } from "@/services/report-service";
+import { DayDetailModal } from "./day-detail-modal";
 
 const DAYS_OF_WEEK = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 interface CalendarViewProps {
     currentDate: Date;
     setCurrentDate: Dispatch<SetStateAction<Date>>;
+    selectedDay: string | null;
     setSelectedDay: Dispatch<SetStateAction<string | null>>;
+    sessions: any[];
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -32,7 +36,11 @@ function getFirstDayOfMonth(year: number, month: number) {
     return day === 0 ? 6 : day - 1; // Monday = 0
 }
 
-export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: CalendarViewProps) {
+export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSelectedDay, sessions }: CalendarViewProps) {
+    const user = useUserStore(state => state.user);
+
+
+
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
@@ -46,14 +54,17 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
     const prevMonth = () => setCurrentDate(new Date(year, month - 1));
     const nextMonth = () => setCurrentDate(new Date(year, month + 1));
 
+    // Fetching logic moved to parent page
+
+
     // Map sessions for easy access
     const sessionsMap = useMemo(() => {
         const map: Record<string, any> = {};
-        mockHistorySessions.forEach(s => {
+        sessions.forEach(s => {
             map[s.date] = s;
         });
         return map;
-    }, []);
+    }, [sessions]);
 
     const days = useMemo(() => {
         const result = [];
@@ -68,39 +79,43 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
         return result;
     }, [year, month, daysInMonth, firstDay, sessionsMap]);
 
-    // Monthly stats for the current month view
+    // Monthly stats
     const stats = useMemo(() => {
-        const currentMonthSessions = mockHistorySessions.filter(s => {
-            const d = new Date(s.date);
-            return d.getMonth() === month && d.getFullYear() === year;
-        });
-
+        const currentMonthSessions = sessions; // Already filtered by fetch
         const totalMinutes = currentMonthSessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
         const totalBreaks = currentMonthSessions.reduce((acc, s) => acc + (s.breakMinutes || 0), 0);
-        const expectedMinutes = currentMonthSessions.length * (mockUser.expected_hours_per_day * 60);
+
+        // Count unique days
+        const uniqueDaysSet = new Set(currentMonthSessions.map(s => s.date));
+        const workedDays = uniqueDaysSet.size;
+
+        const expectedHours = user?.expected_hours_per_day || 8;
+        // Expected minutes should be based on unique worked days or total working days in month?
+        // Assuming "balance" is against days worked so far.
+        const expectedMinutes = workedDays * (expectedHours * 60);
         const balance = totalMinutes - expectedMinutes;
 
         return {
-            workedDays: currentMonthSessions.length,
+            workedDays: workedDays,
             totalTime: formatHoursMinutes(totalMinutes),
             totalBreaks: `${totalBreaks}m`,
             balance: balance,
             balanceFormatted: `${balance >= 0 ? '+' : ''}${formatHoursMinutes(Math.abs(balance))}`
         };
-    }, [month, year]);
+    }, [sessions, user]);
 
-    // Calculate monthly highlights from existing data
+    // Calculate monthly highlights
     const highlights = useMemo(() => {
-        const sessions = days.filter(d => d?.session).map(d => d!.session);
-        if (!sessions.length) return null;
+        const activeSessions = days.filter(d => d?.session).map(d => d!.session);
+        if (!activeSessions.length) return null;
 
-        const maxMinutes = Math.max(...sessions.map(s => s.totalMinutes));
+        const maxMinutes = Math.max(...activeSessions.map(s => s.totalMinutes));
         const bestDay = days.find(d => d?.session?.totalMinutes === maxMinutes);
 
-        const avgMinutes = sessions.reduce((acc, s) => acc + s.totalMinutes, 0) / sessions.length;
+        const avgMinutes = activeSessions.reduce((acc, s) => acc + s.totalMinutes, 0) / activeSessions.length;
 
-        // Simple frequency map for start times to find "typical" start
-        const startTimes = sessions.map(s => s.startTime);
+        // Simple frequency map for start times
+        const startTimes = activeSessions.map(s => s.startTime);
         const modeStartTime = startTimes.sort((a, b) =>
             startTimes.filter(v => v === a).length - startTimes.filter(v => v === b).length
         ).pop();
@@ -113,58 +128,63 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
         };
     }, [days]);
 
+    const selectedSession = useMemo(() => {
+        return selectedDay ? sessionsMap[selectedDay] : null;
+    }, [selectedDay, sessionsMap]);
+
     return (
-        <div className="flex flex-col gap-8 lg:flex-row">
+        <div className="flex flex-col gap-6 lg:gap-8">
             {/* Calendar Main Section */}
-            <div className="flex-1 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
+            <div className="flex-1 rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm">
                 {/* Header */}
-                <div className="relative mb-8 flex flex-col sm:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-5">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
-                            <span className="text-2xl font-black tracking-tighter">{currentDate.getDate()}</span>
+                <div className="relative mb-6 sm:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 pb-6 sm:pb-8 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3 sm:gap-5">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                            <span className="text-xl sm:text-2xl font-black tracking-tighter">{currentDate.getDate()}</span>
                         </div>
                         <div>
-                            <h2 className="text-3xl font-black capitalize text-slate-900 dark:text-white tracking-tight leading-none mb-1">{monthName}</h2>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 capitalize">{year}</p>
+                            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black capitalize text-slate-900 dark:text-white tracking-tight leading-none mb-1">{monthName}</h2>
+                            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 capitalize">{year}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                         <button
                             onClick={prevMonth}
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white hover:shadow-sm transition-all active:scale-95"
+                            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white hover:shadow-sm transition-all active:scale-95"
                         >
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
                         <button
                             onClick={() => setCurrentDate(new Date())}
-                            className="px-4 h-10 flex items-center justify-center rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all active:scale-95"
+                            className="px-3 sm:px-4 h-9 sm:h-10 flex items-center justify-center rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all active:scale-95"
                         >
                             Hoy
                         </button>
                         <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
                         <button
                             onClick={nextMonth}
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white hover:shadow-sm transition-all active:scale-95"
+                            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white hover:shadow-sm transition-all active:scale-95"
                         >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                     </div>
                 </div>
 
                 {/* Weekday Labels */}
-                <div className="mb-4 grid grid-cols-7 gap-3 sm:gap-4">
+                <div className="mb-3 sm:mb-4 grid grid-cols-7 gap-2 sm:gap-3 lg:gap-4">
                     {DAYS_OF_WEEK.map((day) => (
-                        <div key={day} className="py-3 text-center text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl">
+                        <div key={day} className="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-800/30 rounded-lg sm:rounded-xl">
                             {day}
                         </div>
                     ))}
                 </div>
 
                 {/* Days Grid */}
-                <div className="grid grid-cols-7 gap-3 sm:gap-4">
+                <div className="grid grid-cols-7 gap-2 sm:gap-3 lg:gap-4 relative min-h-[250px] sm:min-h-[300px]">
+
                     {days.map((item, i) => {
-                        if (!item) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 dark:bg-slate-800/20 rounded-xl" />;
+                        if (!item) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 dark:bg-slate-800/20 rounded-lg sm:rounded-xl" />;
 
                         const { day, dateStr, session } = item;
                         const dateObj = new Date(dateStr);
@@ -173,7 +193,7 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
                         const isFuture = dateObj > new Date();
 
                         // Calculate balance if session exists
-                        const targetMinutes = mockUser.expected_hours_per_day * 60;
+                        const targetMinutes = (user?.expected_hours_per_day || 8) * 60;
                         const balance = session ? (session.totalMinutes - targetMinutes) : 0;
                         const efficiency = session ? Math.min((session.totalMinutes / targetMinutes) * 100, 100) : 0;
 
@@ -183,83 +203,47 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: i * 0.005 }}
                                 key={dateStr}
-                                onClick={() => session && setSelectedDay(dateStr)}
-                                disabled={!session}
+                                onClick={() => setSelectedDay(dateStr)}
                                 className={cn(
-                                    "group relative flex aspect-[1/1] flex-col items-center justify-between rounded-2xl p-3 transition-all duration-300 overflow-visible",
+                                    "group relative flex aspect-[1/1] flex-col items-center justify-between rounded-xl sm:rounded-2xl p-2 sm:p-3 transition-all duration-300 overflow-visible",
                                     session
                                         ? "bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:shadow-emerald-900/10 dark:hover:shadow-black/40 hover:-translate-y-1 z-0 hover:z-20"
                                         : isWeekend
                                             ? "bg-slate-50/50 dark:bg-slate-900/30 border border-transparent"
-                                            : "bg-white/40 dark:bg-slate-800/40 border border-slate-50 dark:border-slate-800/50",
+                                            : "bg-white/40 dark:bg-slate-800/40 border border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800",
                                     isToday && "ring-2 ring-primary ring-offset-2 ring-offset-white dark:ring-offset-slate-900 z-10"
                                 )}
                             >
                                 <div className="flex w-full items-start justify-between">
                                     <span className={cn(
-                                        "text-sm font-black",
+                                        "text-xs sm:text-sm font-black",
                                         session ? "text-slate-700 dark:text-white" : "text-slate-400 dark:text-slate-600",
                                         isToday && "text-primary dark:text-emerald-400"
                                     )}>{day}</span>
 
                                     {session && (
                                         <div className={cn(
-                                            "h-2 w-2 rounded-full",
+                                            "h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full",
                                             balance >= 0 ? "bg-emerald-500" : "bg-amber-500"
                                         )} />
                                     )}
                                 </div>
 
                                 {session ? (
-                                    <div className="w-full space-y-1">
-                                        <div className="flex h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                                    <div className="w-full space-y-0.5 sm:space-y-1">
+                                        <div className="flex h-0.5 sm:h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                                             <div
                                                 className={cn("h-full rounded-full", balance >= 0 ? "bg-emerald-500" : "bg-amber-500")}
                                                 style={{ width: `${efficiency}%` }}
                                             />
                                         </div>
-                                        <p className="text-[10px] font-black text-slate-600 dark:text-slate-300 text-center">
+                                        <p className="text-[8px] sm:text-[10px] font-black text-slate-600 dark:text-slate-300 text-center">
                                             {formatHoursMinutes(session.totalMinutes)}
                                         </p>
                                     </div>
                                 ) : !isFuture && !isWeekend ? (
-                                    <div className="h-1.5 w-1.5 rounded-full bg-red-100 dark:bg-red-900/20" />
+                                    <div className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-red-100 dark:bg-red-900/20" />
                                 ) : null}
-
-                                {/* Enhanced Tooltip */}
-                                {session && (
-                                    <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-48 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 translate-y-2 group-hover:translate-y-0">
-                                        <div className="rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 p-4 shadow-xl text-left">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                                                {dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
-                                            </p>
-                                            <div className="flex justify-between items-end mb-2">
-                                                <span className="text-2xl font-black tracking-tighter">
-                                                    {formatHoursMinutes(session.totalMinutes)}
-                                                </span>
-                                                <span className={cn(
-                                                    "text-xs font-bold px-2 py-0.5 rounded-md",
-                                                    balance >= 0 ? "bg-emerald-500/20 text-emerald-300 dark:text-emerald-600" : "bg-amber-500/20 text-amber-300 dark:text-amber-600"
-                                                )}>
-                                                    {balance >= 0 ? '+' : ''}{formatHoursMinutes(balance)}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs font-medium opacity-80">
-                                                <Clock className="h-3 w-3" />
-                                                {session.startTime} - {session.endTime}
-                                            </div>
-                                            {session.breakMinutes > 0 && (
-                                                <div className="flex items-center gap-2 text-xs font-medium opacity-80 mt-1">
-                                                    <Coffee className="h-3 w-3" />
-                                                    {session.breakMinutes}m pausa
-                                                </div>
-                                            )}
-
-                                            {/* Arrow */}
-                                            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 h-3 w-3 bg-slate-900 dark:bg-white rotate-45" />
-                                        </div>
-                                    </div>
-                                )}
                             </motion.button>
                         );
                     })}
@@ -267,31 +251,31 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
 
                 {/* Monthly Highlights Section */}
                 {highlights && (
-                    <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-2 mb-6 opacity-60">
+                    <div className="mt-6 sm:mt-8 lg:mt-10 pt-6 sm:pt-8 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2 mb-4 sm:mb-6 opacity-60">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Destacados del Mes</h3>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="group relative overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-5 border border-slate-100 dark:border-slate-800 hover:border-emerald-500/20 transition-all">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                            <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-4 sm:p-5 border border-slate-100 dark:border-slate-800 hover:border-emerald-500/20 transition-all">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">Mejor Día</span>
                                 <div className="flex items-end justify-between">
-                                    <p className="text-sm font-black text-slate-800 dark:text-white capitalize truncate">{highlights.bestDayStr}</p>
-                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md">{highlights.bestDayHours}</span>
+                                    <p className="text-xs sm:text-sm font-black text-slate-800 dark:text-white capitalize truncate">{highlights.bestDayStr}</p>
+                                    <span className="text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md">{highlights.bestDayHours}</span>
                                 </div>
                             </div>
 
-                            <div className="group relative overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-5 border border-slate-100 dark:border-slate-800 hover:border-blue-500/20 transition-all">
+                            <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-4 sm:p-5 border border-slate-100 dark:border-slate-800 hover:border-blue-500/20 transition-all">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">Promedio</span>
                                 <div className="flex items-end gap-2">
-                                    <p className="text-xl font-black text-slate-800 dark:text-white">{highlights.avgDaily}</p>
+                                    <p className="text-lg sm:text-xl font-black text-slate-800 dark:text-white">{highlights.avgDaily}</p>
                                     <span className="text-[10px] font-medium text-slate-500 mb-1">/ día</span>
                                 </div>
                             </div>
 
-                            <div className="group relative overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-5 border border-slate-100 dark:border-slate-800 hover:border-amber-500/20 transition-all">
+                            <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/30 p-4 sm:p-5 border border-slate-100 dark:border-slate-800 hover:border-amber-500/20 transition-all">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">Inicio Habitual</span>
                                 <div className="flex items-end gap-2">
-                                    <p className="text-xl font-black text-slate-800 dark:text-white">{highlights.typicalStart}</p>
+                                    <p className="text-lg sm:text-xl font-black text-slate-800 dark:text-white">{highlights.typicalStart}</p>
                                     <span className="text-[10px] font-medium text-slate-500 mb-1">hrs</span>
                                 </div>
                             </div>
@@ -301,50 +285,50 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
             </div>
 
             {/* Monthly Summary Sidebar */}
-            <div className="w-full lg:w-96 space-y-6">
-                <div className="rounded-[2.5rem] bg-[#1A5235] p-8 text-white shadow-2xl shadow-emerald-900/20 overflow-hidden relative border border-[#1A5235] dark:border-emerald-800">
+            <div className="w-full lg:w-96 space-y-4 sm:space-y-6">
+                <div className="rounded-[2rem] sm:rounded-[2.5rem] bg-[#1A5235] p-6 sm:p-8 text-white shadow-2xl shadow-emerald-900/20 overflow-hidden relative border border-[#1A5235] dark:border-emerald-800">
                     {/* Background decoration */}
                     <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-[#1A5235] dark:bg-emerald-900/50 blur-[60px] opacity-40 pointer-events-none" />
 
                     <div className="relative z-10">
-                        <h3 className="mb-8 text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Resumen Mensual</h3>
+                        <h3 className="mb-6 sm:mb-8 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Resumen Mensual</h3>
 
-                        <div className="space-y-6">
-                            <div className="group relative overflow-hidden rounded-2xl bg-white/5 p-5 border border-white/5 hover:bg-white/10 transition-colors">
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white/5 p-4 sm:p-5 border border-white/5 hover:bg-white/10 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
-                                    <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                        <TrendingUp className="h-5 w-5" />
+                                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                        <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
                                     </div>
                                     <span className={cn(
-                                        "text-xs font-black px-2 py-1 rounded-lg",
+                                        "text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg",
                                         stats.balance >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                                     )}>
                                         {stats.balanceFormatted}
                                     </span>
                                 </div>
-                                <p className="text-3xl font-black tracking-tight">{stats.totalTime}</p>
-                                <p className="text-xs font-medium text-slate-400 mt-1">Horas Totales Trabajadas</p>
+                                <p className="text-2xl sm:text-3xl font-black tracking-tight">{stats.totalTime}</p>
+                                <p className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1">Horas Totales Trabajadas</p>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="rounded-2xl bg-white/5 p-5 border border-white/5 text-center">
-                                    <p className="text-2xl font-black mb-1">{stats.workedDays}</p>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Días</p>
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                                <div className="rounded-xl sm:rounded-2xl bg-white/5 p-4 sm:p-5 border border-white/5 text-center">
+                                    <p className="text-xl sm:text-2xl font-black mb-1">{stats.workedDays}</p>
+                                    <p className="text-left font-bold uppercase tracking-widest text-slate-500 text-[10px]">Días</p>
                                 </div>
-                                <div className="rounded-2xl bg-white/5 p-5 border border-white/5 text-center">
-                                    <p className="text-2xl font-black mb-1">{stats.totalBreaks}</p>
+                                <div className="rounded-xl sm:rounded-2xl bg-white/5 p-4 sm:p-5 border border-white/5 text-center">
+                                    <p className="text-xl sm:text-2xl font-black mb-1">{stats.totalBreaks}</p>
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Pausas</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-8 border-t border-white/10">
+                        <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/10">
                             <div className="flex justify-between items-end mb-4">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Rendimiento</p>
-                                    <p className="text-lg font-bold">Consistente</p>
+                                    <p className="text-base sm:text-lg font-bold">Consistente</p>
                                 </div>
-                                <Target className="h-8 w-8 text-emerald-500 opacity-80" />
+                                <Target className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500 opacity-80" />
                             </div>
                             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                                 <motion.div
@@ -358,25 +342,31 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
                     </div>
 
                     {/* Legend */}
-                    <div className="mt-6 rounded-[2rem] border border-emerald-500/20 bg-emerald-900/20 p-8 shadow-sm text-white">
-                        <h3 className="mb-6 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-200/60">Leyenda</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="h-5 w-5 rounded-lg border border-emerald-500/30 bg-white ring-2 ring-emerald-400/20 shadow-sm" />
-                                <span className="text-xs font-bold text-emerald-50">Jornada Completada</span>
+                    <div className="mt-4 sm:mt-6 rounded-[1.5rem] sm:rounded-[2rem] border border-emerald-500/20 bg-emerald-900/20 p-6 sm:p-8 shadow-sm text-white">
+                        <h3 className="mb-4 sm:mb-6 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-emerald-200/60">Leyenda</h3>
+                        <div className="space-y-3 sm:space-y-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-lg border border-emerald-500/30 bg-white ring-2 ring-emerald-400/20 shadow-sm" />
+                                <span className="text-[10px] sm:text-xs font-bold text-emerald-50">Jornada Completada</span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="h-5 w-5 rounded-lg bg-red-400/20 border border-red-400/30" />
-                                <span className="text-xs font-bold text-emerald-50">Ausencia</span>
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-lg bg-red-400/20 border border-red-400/30" />
+                                <span className="text-[10px] sm:text-xs font-bold text-emerald-50">Ausencia</span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="h-5 w-5 rounded-lg bg-emerald-900/40 opacity-60 border border-emerald-500/20" />
-                                <span className="text-xs font-bold text-emerald-50">No Laborable</span>
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-lg bg-emerald-900/40 opacity-60 border border-emerald-500/20" />
+                                <span className="text-[10px] sm:text-xs font-bold text-emerald-50">No Laborable</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <DayDetailModal
+                selectedDay={selectedDay}
+                setSelectedDay={setSelectedDay}
+                session={selectedSession}
+            />
         </div>
     );
 }

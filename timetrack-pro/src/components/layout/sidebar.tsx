@@ -16,6 +16,10 @@ import {
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useNotification } from "@/contexts/notification-context";
+import { createClient } from "@/lib/supabase/client";
+import { useSessionStore } from "@/stores/session-store";
+import { useUserStore } from "@/stores/user-store";
+import { useConfigStore } from "@/stores/config-store";
 
 const menuItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -34,24 +38,32 @@ export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { addNotification } = useNotification();
+    const supabase = createClient();
+    const resetSessions = useSessionStore(state => state.reset);
+    const userLogout = useUserStore(state => state.logout);
+    const resetConfig = useConfigStore(state => state.reset);
 
-    const handleLogout = () => {
-        document.cookie = "sb-mock-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        resetSessions();
+        userLogout();
+        resetConfig();
         addNotification("Sesión Cerrada", "Has salido de tu cuenta correctamente.", "info");
         router.push("/login");
+        router.refresh();
     };
 
     return (
         <aside className="relative flex h-full w-full flex-col bg-transparent">
             {/* Logo Section - Logo y Texto centrados con ajuste a la izquierda */}
-            <div className="flex h-32 w-full items-center justify-center shrink-0">
-                <div className="flex items-center gap-0 -ml-9">
+            <div className="flex h-24 lg:h-32 w-full items-center justify-center lg:justify-center shrink-0">
+                <div className="flex items-center gap-0 -ml-4 lg:-ml-9">
                     <img
                         src="https://i.ibb.co/V0m9W2wc/imagen-2026-02-11-234121829.png"
                         alt="Logo"
-                        className="h-16 w-auto object-contain -mr-6"
+                        className="h-12 lg:h-16 w-auto object-contain -mr-4 lg:-mr-6"
                     />
-                    <span className="text-2xl font-[1000] tracking-tighter text-slate-800 dark:text-white italic leading-none relative z-10">
+                    <span className="text-xl lg:text-2xl font-[1000] tracking-tighter text-slate-800 dark:text-white italic leading-none relative z-10">
                         TimeTrack<span className="text-emerald-600">Pro</span>
                     </span>
                 </div>

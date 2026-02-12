@@ -10,7 +10,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import { mockUser } from "@/mocks/mock-data";
+import { useUserStore } from "@/stores/user-store";
 
 interface ReportChartProps {
     sessions: any[];
@@ -39,6 +39,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: ReportChartProps) {
+    const user = useUserStore(state => state.user);
+    const expectedHours = user?.expected_hours_per_day || 8;
+
     const chartData = useMemo(() => {
         if (dateRange === "week") {
             const days = [];
@@ -46,10 +49,12 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             for (let i = 0; i < 7; i++) {
                 const dateStr = temp.toISOString().split('T')[0];
                 const session = sessions.find(s => s.date === dateStr);
+                const hours = session ? Number((session.totalMinutes / 60).toFixed(1)) : 0;
+
                 days.push({
                     name: temp.toLocaleDateString("es-ES", { weekday: 'short' }),
-                    hours: session ? Number((session.totalMinutes / 60).toFixed(1)) : 0,
-                    target: mockUser.expected_hours_per_day
+                    hours: hours,
+                    target: expectedHours
                 });
                 temp.setDate(temp.getDate() + 1);
             }
@@ -58,131 +63,107 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             // Group by weeks
             const weeks = [];
             const temp = new Date(periodStart);
-            while (temp <= periodEnd) {
-                const weekNum = Math.ceil(temp.getDate() / 7);
-                const weekKey = `Sem ${weekNum}`;
+            const end = new Date(periodEnd);
 
-                // Get sessions for this week
-                const weekEnd = new Date(temp);
-                weekEnd.setDate(temp.getDate() + 6);
-                if (weekEnd > periodEnd) weekEnd.setTime(periodEnd.getTime());
+            let currentWeekStart = new Date(temp);
+            let weekNum = 1;
 
-                const weekSessions = sessions.filter(s => {
+            while (currentWeekStart <= end) {
+                const currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+
+                // Effective end of week (clamp to month end)
+                const effectiveEnd = currentWeekEnd > end ? end : currentWeekEnd;
+
+                let totalMinutes = 0;
+                let daysCount = 0;
+
+                // Sum sessions in this week range
+                sessions.forEach(s => {
                     const d = new Date(s.date);
-                    return d >= temp && d <= weekEnd;
+                    if (d >= currentWeekStart && d <= effectiveEnd) {
+                        totalMinutes += s.totalMinutes;
+                    }
                 });
 
-                const totalMinutes = weekSessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
-
-                // Calculate target based on 5 workdays per week roughly, or correctly based on days in period
-                let workDaysInWeek = 0;
-                const d = new Date(temp);
-                while (d <= weekEnd) {
-                    if (d.getDay() !== 0 && d.getDay() !== 6) workDaysInWeek++;
-                    d.setDate(d.getDate() + 1);
+                // Calculate working days in period (simple approximation: M-F)
+                // Better: Iterate days
+                let iter = new Date(currentWeekStart);
+                while (iter <= effectiveEnd) {
+                    if (iter.getDay() !== 0 && iter.getDay() !== 6) daysCount++;
+                    iter.setDate(iter.getDate() + 1);
                 }
 
                 weeks.push({
-                    name: weekKey,
+                    name: `Sem ${weekNum}`,
                     hours: Number((totalMinutes / 60).toFixed(1)),
-                    target: workDaysInWeek * mockUser.expected_hours_per_day
+                    target: expectedHours * daysCount
                 });
 
-                temp.setDate(temp.getDate() + 7);
-                if (weeks.length >= 5) break;
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                weekNum++;
             }
             return weeks;
-        } else { // quarter
-            // Group by months
+        } else { // Quarter
             const months = [];
             const temp = new Date(periodStart);
             for (let i = 0; i < 3; i++) {
-                const monthStart = new Date(temp);
-                const monthEnd = new Date(temp.getFullYear(), temp.getMonth() + 1, 0);
+                const monthStart = new Date(temp.getFullYear(), temp.getMonth() + i, 1);
+                const monthEnd = new Date(temp.getFullYear(), temp.getMonth() + i + 1, 0);
 
-                const monthSessions = sessions.filter(s => {
+                let totalMinutes = 0;
+                // Sum sessions in month
+                sessions.forEach(s => {
                     const d = new Date(s.date);
-                    return d.getMonth() === temp.getMonth() && d.getFullYear() === temp.getFullYear();
+                    if (d >= monthStart && d <= monthEnd) totalMinutes += s.totalMinutes;
                 });
 
-                const totalMinutes = monthSessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
-
-                // Real workdays in month
-                let workDaysInMonth = 0;
-                const d = new Date(monthStart);
-                while (d <= monthEnd) {
-                    if (d.getDay() !== 0 && d.getDay() !== 6) workDaysInMonth++;
-                    d.setDate(d.getDate() + 1);
-                }
-
+                // Target? Approx 22 days * 8h
                 months.push({
-                    name: temp.toLocaleDateString("es-ES", { month: 'short' }),
+                    name: monthStart.toLocaleDateString('es-ES', { month: 'short' }),
                     hours: Number((totalMinutes / 60).toFixed(1)),
-                    target: workDaysInMonth * mockUser.expected_hours_per_day
+                    target: expectedHours * 22
                 });
-                temp.setMonth(temp.getMonth() + 1);
             }
             return months;
         }
-    }, [sessions, dateRange, periodStart, periodEnd]);
+    }, [sessions, dateRange, periodStart, periodEnd, expectedHours]);
 
     return (
-        <div id="report-chart-container" className="rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm h-full flex flex-col">
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-black text-slate-800 dark:text-white">Carga de Trabajo</h3>
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Comparativa de horas vs meta</p>
-                </div>
-                <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full bg-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Trabajado</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full bg-slate-100 dark:bg-slate-700" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Meta</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 min-h-0">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} barGap={8}>
-                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} vertical={false} />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 800 }}
-                            dy={10}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 800 }}
-                            tickFormatter={(v) => `${v}h`}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} />
-                        <Bar
-                            dataKey="target"
-                            fill="#334155"
-                            className="fill-slate-100 dark:fill-slate-800"
-                            radius={[6, 6, 0, 0]}
-                            name="target"
-                            barSize={32}
-                        />
-                        <Bar
-                            dataKey="hours"
-                            fill="#166534"
-                            className="fill-[#166534] dark:fill-emerald-600"
-                            radius={[6, 6, 0, 0]}
-                            name="hours"
-                            barSize={32}
-                            animationDuration={1500}
-                        />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+        <div className="h-full w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barSize={dateRange === 'week' ? 40 : 20}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                    <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 700 }}
+                        dy={10}
+                    />
+                    <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 700 }}
+                        dx={-10}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F1F5F9', opacity: 0.4 }} />
+                    <Bar
+                        dataKey="hours"
+                        name="hours"
+                        radius={[6, 6, 6, 6]}
+                        fill="#1A5235"
+                        className="fill-[#1A5235] dark:fill-emerald-600"
+                    />
+                    <Bar
+                        dataKey="target"
+                        name="target"
+                        radius={[6, 6, 6, 6]}
+                        fill="#e2e8f0"
+                        className="fill-slate-200 dark:fill-slate-700"
+                    />
+                </BarChart>
+            </ResponsiveContainer>
         </div>
     );
 }
