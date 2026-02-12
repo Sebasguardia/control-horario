@@ -150,4 +150,5 @@ export const mockHistorySessions = [
         breakMinutes: 60,
         status: "completed" as const,
     },
+
 ];
