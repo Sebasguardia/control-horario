@@ -7,11 +7,16 @@ import { useRouter } from "next/navigation";
 import { useNotification } from "@/contexts/notification-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [acceptTerms, setAcceptTerms] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [fullName, setFullName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const router = useRouter();
     const { addNotification } = useNotification();
     const { theme, setTheme } = useTheme();
@@ -22,11 +27,45 @@ export default function RegisterPage() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (password !== confirmPassword) {
+            addNotification("Error", "Las contraseñas no coinciden.", "error");
+            return;
+        }
+
+        if (!acceptTerms) {
+            addNotification("Error", "Debes aceptar los términos y condiciones.", "error");
+            return;
+        }
+
         setLoading(true);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        addNotification("¡Cuenta Creada!", "Bienvenido a TimeTrack Pro.", "success");
-        router.push("/dashboard");
-        setLoading(false);
+
+        try {
+            const supabase = createClient();
+
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: fullName,
+                    }
+                }
+            });
+
+            if (error) {
+                addNotification("Error de registro", error.message, "error");
+                setLoading(false);
+                return;
+            }
+
+            addNotification("¡Cuenta Creada!", "Bienvenido a TimeTrack Pro.", "success");
+            router.push("/dashboard");
+            router.refresh();
+        } catch (error: any) {
+            addNotification("Error", "Ocurrió un error inesperado.", "error");
+            setLoading(false);
+        }
     };
 
     const bgImage = theme === "dark"
@@ -96,6 +135,8 @@ export default function RegisterPage() {
                                 <input
                                     type="text"
                                     required
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
                                     placeholder="Tu Nombre"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />
@@ -105,6 +146,8 @@ export default function RegisterPage() {
                                 <input
                                     type="email"
                                     required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     placeholder="correo@empresa.com"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />
@@ -150,6 +193,8 @@ export default function RegisterPage() {
                                 <input
                                     type="password"
                                     required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />
@@ -159,6 +204,8 @@ export default function RegisterPage() {
                                 <input
                                     type="password"
                                     required
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="••••••••"
                                     className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 text-xs font-bold text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:focus:ring-emerald-500/5 placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 />

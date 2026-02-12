@@ -1,5 +1,7 @@
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { WorkSession, Break } from '@/types/models';
+
+const supabase = createClient();
 
 export const SessionService = {
     async startSession(userId: string): Promise<WorkSession | null> {

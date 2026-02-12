@@ -1,9 +1,10 @@
 "use client";
 
-import { mockStats } from "@/mocks/mock-data";
 import { formatHoursMinutes, cn } from "@/lib/utils";
 import { ArrowUpRight, TrendingUp, CalendarCheck, Coffee, Clock, LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface StatCardProps {
     title: string;
@@ -54,14 +55,6 @@ function StatCard({ title, value, description, trend, active, icon: Icon, index 
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 text-[10px] font-bold">
-                        <span className={cn(
-                            "flex items-center gap-1 rounded-md px-1.5 py-0.5 border",
-                            trend === 'up'
-                                ? "bg-green-50 dark:bg-emerald-900/30 text-primary dark:text-emerald-400 border-green-100 dark:border-emerald-900/50"
-                                : "bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 border-red-100 dark:border-red-900/50"
-                        )}>
-                            {trend === 'up' ? '▲' : '▼'} {trend === 'up' ? '8%' : '3%'}
-                        </span>
                         <span className="text-slate-400 dark:text-slate-500 capitalize">{description}</span>
                     </div>
                 )}
@@ -79,13 +72,89 @@ function StatCard({ title, value, description, trend, active, icon: Icon, index 
 }
 
 export default function QuickStats() {
+    const [stats, setStats] = useState({
+        todayMinutes: 0,
+        weeklyHours: 0,
+        weeklyBreakMinutes: 0,
+        monthlyBalance: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadStats = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+
+            // Obtener estadísticas del día actual
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayDateString = today.toISOString().split('T')[0];
+
+            const { data: todayData } = await supabase
+                .from('v_daily_stats')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('work_date', todayDateString)
+                .maybeSingle();
+
+            const todayMinutes = (todayData as any)?.net_work_minutes || 0;
+
+            // Obtener estadísticas semanales usando la vista
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            const weekStart = startOfWeek.toISOString().split('T')[0];
+
+            const { data: weekData } = await supabase
+                .from('v_daily_stats')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('work_date', weekStart)
+                .lte('work_date', todayDateString);
+
+            const weeklyMinutes = (weekData as any[])?.reduce((acc: number, s: any) => acc + (s.total_work_minutes || 0), 0) || 0;
+            const weeklyBreakMinutes = (weekData as any[])?.reduce((acc: number, s: any) => acc + (s.total_break_minutes || 0), 0) || 0;
+
+            setStats({
+                todayMinutes,
+                weeklyHours: Math.round(weeklyMinutes / 60),
+                weeklyBreakMinutes,
+                monthlyBalance: 0 // TODO: Calcular balance mensual
+            });
+            setLoading(false);
+        };
+
+        loadStats();
+
+        // Actualizar cada 30 segundos
+        const interval = setInterval(loadStats, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="h-48 rounded-[1.5rem] bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                ))}
+            </div>
+        );
+    }
+
+    const todayPercentage = Math.round((stats.todayMinutes / 480) * 100); // 480 = 8 horas
+
     return (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
                 index={0}
                 title="Horas Hoy"
-                value={formatHoursMinutes(400)}
-                description="85% de la meta diaria"
+                value={formatHoursMinutes(stats.todayMinutes)}
+                description={`${todayPercentage}% de la meta diaria`}
                 trend="up"
                 active={true}
                 icon={TrendingUp}
@@ -93,25 +162,25 @@ export default function QuickStats() {
             <StatCard
                 index={1}
                 title="Total Semanal"
-                value={`${mockStats.totalHoursThisWeek}h`}
-                description="+2h vs semana pasada"
+                value={`${stats.weeklyHours}h`}
+                description="Esta semana"
                 trend="up"
                 icon={CalendarCheck}
             />
             <StatCard
                 index={2}
                 title="Pausas Semanales"
-                value={formatHoursMinutes(mockStats.breakMinutesThisWeek)}
-                description="Promedio estable"
+                value={formatHoursMinutes(stats.weeklyBreakMinutes)}
+                description="Total de pausas"
                 trend="neutral"
                 icon={Coffee}
             />
             <StatCard
                 index={3}
                 title="Balance Mensual"
-                value="+4h"
+                value={stats.monthlyBalance >= 0 ? `+${stats.monthlyBalance}h` : `${stats.monthlyBalance}h`}
                 description="Horas a favor"
-                trend="up"
+                trend={stats.monthlyBalance >= 0 ? "up" : "down"}
                 icon={Clock}
             />
         </div>

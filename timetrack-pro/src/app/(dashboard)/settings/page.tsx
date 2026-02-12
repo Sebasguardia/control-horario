@@ -21,15 +21,36 @@ import { useConfigStore } from "@/stores/config-store";
 import { usePageStore } from "@/stores/page-store";
 import { useNotification } from "@/contexts/notification-context";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SettingsPage() {
     const { addNotification } = useNotification();
     const config = useConfigStore();
     const [activeTab, setActiveTab] = useState("profile");
     const setTitle = usePageStore((state) => state.setTitle);
+    const [user, setUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Configuración", "Gestiona tu cuenta y preferencias de la plataforma.");
+
+        const loadUser = async () => {
+            const supabase = createClient();
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+
+            if (authUser) {
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', authUser.id)
+                    .single();
+
+                setUser(userData || authUser);
+            }
+            setLoading(false);
+        };
+
+        loadUser();
     }, [setTitle]);
 
     const handleSave = () => {
@@ -42,6 +63,14 @@ export default function SettingsPage() {
         { id: "notifications", label: "Notificaciones", icon: Bell, desc: "Alertas y avisos" },
         { id: "security", label: "Seguridad", icon: Shield, desc: "Contraseña y acceso" },
     ];
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-10">
@@ -107,12 +136,18 @@ export default function SettingsPage() {
 
                                         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center relative z-10">
                                             <div className="relative group cursor-pointer">
-                                                <div className="h-32 w-32 overflow-hidden rounded-[2rem] bg-slate-100 dark:bg-slate-800 ring-8 ring-white dark:ring-slate-900 shadow-2xl transition-transform group-hover:scale-[1.02]">
-                                                    <img
-                                                        src={mockUser.avatar_url || ""}
-                                                        alt="Profile"
-                                                        className="h-full w-full object-cover"
-                                                    />
+                                                <div className="h-32 w-32 overflow-hidden rounded-[2rem] bg-slate-100 dark:bg-slate-800 ring-8 ring-white dark:ring-slate-900 shadow-2xl transition-transform group-hover:scale-[1.02] flex items-center justify-center">
+                                                    {user?.avatar_url ? (
+                                                        <img
+                                                            src={user.avatar_url}
+                                                            alt="Profile"
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-4xl font-black text-slate-400">
+                                                            {user?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem]">
                                                     <Camera className="h-8 w-8 text-white" />
@@ -120,15 +155,15 @@ export default function SettingsPage() {
                                             </div>
                                             <div className="space-y-4">
                                                 <div>
-                                                    <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{mockUser.full_name}</h2>
-                                                    <p className="text-base font-medium text-slate-400 dark:text-slate-500">{mockUser.email}</p>
+                                                    <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{user?.full_name || user?.email || 'Usuario'}</h2>
+                                                    <p className="text-base font-medium text-slate-400 dark:text-slate-500">{user?.email}</p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
                                                     <span className="inline-flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700 uppercase tracking-wide">
-                                                        <Briefcase className="h-3 w-3" /> {mockUser.position}
+                                                        <Briefcase className="h-3 w-3" /> {user?.position || 'Sin cargo'}
                                                     </span>
                                                     <span className="inline-flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700 uppercase tracking-wide">
-                                                        <Building2 className="h-3 w-3" /> {mockUser.department}
+                                                        <Building2 className="h-3 w-3" /> {user?.department || 'Sin departamento'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -141,15 +176,15 @@ export default function SettingsPage() {
                                             <div className="space-y-5">
                                                 <div>
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Nombre Completo</label>
-                                                    <input type="text" defaultValue={mockUser.full_name} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
+                                                    <input type="text" defaultValue={user?.full_name || ''} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
                                                 </div>
                                                 <div>
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Email Profesional</label>
-                                                    <input type="email" defaultValue={mockUser.email} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
+                                                    <input type="email" defaultValue={user?.email || ''} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
                                                 </div>
                                                 <div>
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Género</label>
-                                                    <select defaultValue={mockUser.gender} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer">
+                                                    <select defaultValue={user?.gender || 'No especificado'} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer">
                                                         <option>Masculino</option>
                                                         <option>Femenino</option>
                                                         <option>No especificado</option>
@@ -165,16 +200,16 @@ export default function SettingsPage() {
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Ubicación</label>
                                                     <div className="relative">
                                                         <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
-                                                        <input type="text" defaultValue={mockUser.city} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 pl-12 pr-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
+                                                        <input type="text" defaultValue={user?.city || ''} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 pl-12 pr-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Cargo</label>
-                                                    <input type="text" defaultValue={mockUser.position} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
+                                                    <input type="text" defaultValue={user?.position || ''} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
                                                 </div>
                                                 <div>
                                                     <label className="mb-2 block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Departamento</label>
-                                                    <input type="text" defaultValue={mockUser.department} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
+                                                    <input type="text" defaultValue={user?.department || ''} className="h-14 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#1A5235]/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-[#1A5235]/5 dark:focus:ring-emerald-500/10 transition-all" />
                                                 </div>
                                             </div>
                                         </div>
@@ -189,6 +224,7 @@ export default function SettingsPage() {
                                 </div>
                             )}
 
+                            {/* Los demás tabs permanecen igual */}
                             {activeTab === "schedule" && (
                                 <div className="rounded-[2.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-10 shadow-sm relative overflow-hidden">
                                     <div className="mb-10">

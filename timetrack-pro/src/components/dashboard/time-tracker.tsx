@@ -3,11 +3,11 @@
 import { useTimer } from "@/hooks/use-timer";
 import { formatTime, cn } from "@/lib/utils";
 import { Play, Square, Coffee, Clock, Utensils, Moon } from "lucide-react";
-import { motion } from "framer-motion";
-
-
-import { mockUser } from "@/mocks/mock-data";
 import { useNotification } from "@/contexts/notification-context";
+import { createClient } from "@/lib/supabase/client";
+import { SessionService } from "@/services/session-service";
+import { BreakService } from "@/services/break-service";
+import { useEffect, useState } from "react";
 
 export default function TimeTracker() {
     const {
@@ -21,39 +21,85 @@ export default function TimeTracker() {
     } = useTimer();
 
     const { addNotification } = useNotification();
+    const [userId, setUserId] = useState<string | null>(null);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+    const [currentBreakId, setCurrentBreakId] = useState<string | null>(null);
 
-    const handleStart = () => {
-        startSession();
-        addNotification("Jornada Iniciada", "¡Buena suerte con tu trabajo!", "success");
-    };
+    // Cargar usuario al montar
+    useEffect(() => {
+        const loadUser = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setUserId(user.id);
+            }
+        };
+        loadUser();
+    }, []);
 
-    const handleStop = () => {
-        stopSession();
+    const handleStart = async () => {
+        if (!userId) {
+            addNotification("Error", "No se pudo identificar al usuario", "error");
+            return;
+        }
 
-        // Early Exit Check
-        const now = new Date();
-        const [endHour, endMinute] = mockUser.schedule.end.split(':').map(Number);
-        const scheduleEnd = new Date(now);
-        scheduleEnd.setHours(endHour, endMinute, 0, 0);
-
-        if (now < scheduleEnd) {
-            addNotification(
-                "Salida Anticipada",
-                `Has finalizado tu jornada a las ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, antes de tu hora de salida programada (${mockUser.schedule.end}).`,
-                "warning"
-            );
+        // Crear sesión en Supabase
+        const session = await SessionService.startSession(userId);
+        if (session) {
+            setCurrentSessionId(session.id);
+            startSession();
+            addNotification("Jornada Iniciada", "¡Buena suerte con tu trabajo!", "success");
         } else {
-            addNotification("Jornada Finalizada", "Tu registro ha sido guardado correctamente.", "success");
+            addNotification("Error", "No se pudo iniciar la sesión", "error");
         }
     };
 
-    const handleBreakToggle = (type: string) => {
-        if (status === 'break') {
-            endBreak();
-            addNotification("Trabajo Reanudado", "Has vuelto de tu pausa.", "success");
+    const handleStop = async () => {
+        if (!currentSessionId) {
+            addNotification("Error", "No hay sesión activa", "error");
+            return;
+        }
+
+        // Finalizar sesión en Supabase
+        const session = await SessionService.endSession(currentSessionId);
+        if (session) {
+            stopSession();
+            setCurrentSessionId(null);
+            addNotification("Jornada Finalizada", "Tu registro ha sido guardado correctamente.", "success");
         } else {
-            startBreak(type);
-            addNotification("Pausa Iniciada", `Pausa de ${type.toLowerCase()} en curso. Disfruta tu descanso.`, "info");
+            addNotification("Error", "No se pudo finalizar la sesión", "error");
+        }
+    };
+
+    const handleBreakToggle = async (type: string) => {
+        if (status === 'break') {
+            // Finalizar pausa
+            if (currentBreakId) {
+                const breakRecord = await BreakService.endBreak(currentBreakId);
+                if (breakRecord) {
+                    endBreak();
+                    setCurrentBreakId(null);
+                    addNotification("Trabajo Reanudado", "Has vuelto de tu pausa.", "success");
+                } else {
+                    addNotification("Error", "No se pudo finalizar la pausa", "error");
+                }
+            }
+        } else {
+            // Iniciar pausa
+            if (!currentSessionId) {
+                addNotification("Error", "Debes iniciar una jornada primero", "warning");
+                return;
+            }
+
+            const breakType = type.toLowerCase() as 'almuerzo' | 'descanso' | 'personal';
+            const breakRecord = await BreakService.startBreak(currentSessionId, breakType);
+            if (breakRecord) {
+                setCurrentBreakId(breakRecord.id);
+                startBreak(type);
+                addNotification("Pausa Iniciada", `Pausa de ${type.toLowerCase()} en curso. Disfruta tu descanso.`, "info");
+            } else {
+                addNotification("Error", "No se pudo iniciar la pausa", "error");
+            }
         }
     };
 

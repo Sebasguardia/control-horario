@@ -6,15 +6,17 @@ import { ReportStats } from "@/components/reports/report-stats";
 import { ReportChart } from "@/components/reports/report-chart";
 import { usePageStore } from "@/stores/page-store";
 import { motion, AnimatePresence } from "framer-motion";
-import { mockHistorySessions } from "@/mocks/mock-data";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export-utils";
 import { formatHoursMinutes } from "@/lib/utils";
 import { Clock, Calendar as CalendarIcon } from "lucide-react";
 import html2canvas from "html2canvas";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ReportsPage() {
     const [dateRange, setDateRange] = useState("month"); // week, month, quarter
-    const [anchorDate, setAnchorDate] = useState(new Date(2026, 1, 11)); // Using Feb 2026 as reference
+    const [anchorDate, setAnchorDate] = useState(new Date());
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const { title, subtitle, setTitle } = usePageStore();
 
     useEffect(() => {
@@ -65,13 +67,42 @@ export default function ReportsPage() {
         }
     }, [dateRange, anchorDate]);
 
+    // Load sessions from Supabase
+    useEffect(() => {
+        const loadSessions = async () => {
+            setLoading(true);
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data } = await supabase
+                .from('v_daily_stats')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('work_date', periodInfo.start.toISOString().split('T')[0])
+                .lte('work_date', periodInfo.end.toISOString().split('T')[0]);
+
+            if (data) {
+                const formattedSessions = data.map((s: any) => ({
+                    id: s.work_date,
+                    date: s.work_date,
+                    startTime: s.first_entry || '00:00',
+                    endTime: s.last_exit || null,
+                    totalMinutes: s.net_work_minutes || 0,
+                    breakMinutes: s.total_break_minutes || 0,
+                }));
+                setSessions(formattedSessions);
+            }
+            setLoading(false);
+        };
+
+        loadSessions();
+    }, [periodInfo]);
+
     // Filter sessions based on current period
     const filteredSessions = useMemo(() => {
-        return mockHistorySessions.filter(s => {
-            const d = new Date(s.date);
-            return d >= periodInfo.start && d <= periodInfo.end;
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [periodInfo]);
+        return sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [sessions]);
 
     const handleExport = async (format: 'CSV' | 'Excel' | 'PDF') => {
         const exportData = filteredSessions.map(s => ({

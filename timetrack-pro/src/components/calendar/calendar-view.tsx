@@ -1,6 +1,5 @@
 "use client";
 
-import { mockHistorySessions, mockUser } from "@/mocks/mock-data";
 import { formatHoursMinutes, cn } from "@/lib/utils";
 import {
     ChevronLeft,
@@ -10,10 +9,10 @@ import {
     Target,
     TrendingUp,
     Calendar as CalendarIcon,
-    AlertCircle
 } from "lucide-react";
-import { Dispatch, SetStateAction, useMemo } from "react";
+import { Dispatch, SetStateAction, useMemo, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 const DAYS_OF_WEEK = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -21,6 +20,14 @@ interface CalendarViewProps {
     currentDate: Date;
     setCurrentDate: Dispatch<SetStateAction<Date>>;
     setSelectedDay: Dispatch<SetStateAction<string | null>>;
+}
+
+interface SessionData {
+    date: string;
+    startTime: string;
+    endTime: string | null;
+    totalMinutes: number;
+    breakMinutes: number;
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -33,6 +40,10 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: CalendarViewProps) {
+    const [sessions, setSessions] = useState<SessionData[]>([]);
+    const [expectedHours, setExpectedHours] = useState(8);
+    const [loading, setLoading] = useState(true);
+
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
@@ -46,14 +57,60 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
     const prevMonth = () => setCurrentDate(new Date(year, month - 1));
     const nextMonth = () => setCurrentDate(new Date(year, month + 1));
 
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            const supabase = createClient();
+
+            // Get user data
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: userData } = await supabase
+                .from('users')
+                .select('expected_hours_per_day')
+                .eq('id', user.id)
+                .single();
+
+            if (userData) {
+                setExpectedHours((userData as any).expected_hours_per_day || 8);
+            }
+
+            // Get sessions for the current month
+            const startDate = new Date(year, month, 1);
+            const endDate = new Date(year, month + 1, 0);
+
+            const { data: sessionsData } = await supabase
+                .from('v_daily_stats')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('work_date', startDate.toISOString().split('T')[0])
+                .lte('work_date', endDate.toISOString().split('T')[0]);
+
+            if (sessionsData) {
+                const formattedSessions = sessionsData.map((s: any) => ({
+                    date: s.work_date,
+                    startTime: s.first_entry || '00:00',
+                    endTime: s.last_exit || null,
+                    totalMinutes: s.net_work_minutes || 0,
+                    breakMinutes: s.total_break_minutes || 0,
+                }));
+                setSessions(formattedSessions);
+            }
+            setLoading(false);
+        };
+
+        loadData();
+    }, [year, month]);
+
     // Map sessions for easy access
     const sessionsMap = useMemo(() => {
-        const map: Record<string, any> = {};
-        mockHistorySessions.forEach(s => {
+        const map: Record<string, SessionData> = {};
+        sessions.forEach(s => {
             map[s.date] = s;
         });
         return map;
-    }, []);
+    }, [sessions]);
 
     const days = useMemo(() => {
         const result = [];
@@ -70,28 +127,22 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
 
     // Monthly stats for the current month view
     const stats = useMemo(() => {
-        const currentMonthSessions = mockHistorySessions.filter(s => {
-            const d = new Date(s.date);
-            return d.getMonth() === month && d.getFullYear() === year;
-        });
-
-        const totalMinutes = currentMonthSessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
-        const totalBreaks = currentMonthSessions.reduce((acc, s) => acc + (s.breakMinutes || 0), 0);
-        const expectedMinutes = currentMonthSessions.length * (mockUser.expected_hours_per_day * 60);
+        const totalMinutes = sessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
+        const totalBreaks = sessions.reduce((acc, s) => acc + (s.breakMinutes || 0), 0);
+        const expectedMinutes = sessions.length * (expectedHours * 60);
         const balance = totalMinutes - expectedMinutes;
 
         return {
-            workedDays: currentMonthSessions.length,
+            workedDays: sessions.length,
             totalTime: formatHoursMinutes(totalMinutes),
             totalBreaks: `${totalBreaks}m`,
             balance: balance,
             balanceFormatted: `${balance >= 0 ? '+' : ''}${formatHoursMinutes(Math.abs(balance))}`
         };
-    }, [month, year]);
+    }, [sessions, expectedHours]);
 
     // Calculate monthly highlights from existing data
     const highlights = useMemo(() => {
-        const sessions = days.filter(d => d?.session).map(d => d!.session);
         if (!sessions.length) return null;
 
         const maxMinutes = Math.max(...sessions.map(s => s.totalMinutes));
@@ -111,7 +162,15 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
             avgDaily: formatHoursMinutes(avgMinutes),
             typicalStart: modeStartTime || '-'
         };
-    }, [days]);
+    }, [days, sessions]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col gap-8 lg:flex-row">
@@ -173,7 +232,7 @@ export function CalendarView({ currentDate, setCurrentDate, setSelectedDay }: Ca
                         const isFuture = dateObj > new Date();
 
                         // Calculate balance if session exists
-                        const targetMinutes = mockUser.expected_hours_per_day * 60;
+                        const targetMinutes = expectedHours * 60;
                         const balance = session ? (session.totalMinutes - targetMinutes) : 0;
                         const efficiency = session ? Math.min((session.totalMinutes / targetMinutes) * 100, 100) : 0;
 

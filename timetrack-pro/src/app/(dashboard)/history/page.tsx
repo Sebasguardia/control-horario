@@ -5,22 +5,67 @@ import { HistoryFilters } from "@/components/history/history-filters";
 import { HistoryTable } from "@/components/history/history-table";
 import { usePageStore } from "@/stores/page-store";
 import { motion } from "framer-motion";
-import { mockHistorySessions } from "@/mocks/mock-data";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export-utils";
 import { formatHoursMinutes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+
+interface WorkSession {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string | null;
+    breakMinutes: number;
+    totalMinutes: number;
+}
 
 export default function HistoryPage() {
     const { title, subtitle, setTitle } = usePageStore();
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [sessions, setSessions] = useState<WorkSession[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Historial", "Todas tus jornadas de trabajo registradas.");
     }, [setTitle]);
 
+    useEffect(() => {
+        const loadSessions = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('work_sessions')
+                .select('*')
+                .eq('user_id', user.id)
+                .not('end_time', 'is', null)
+                .order('start_time', { ascending: false });
+
+            if (data) {
+                const formattedSessions: WorkSession[] = data.map((session: any) => ({
+                    id: session.id,
+                    date: new Date(session.start_time).toISOString().split('T')[0],
+                    startTime: new Date(session.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                    endTime: session.end_time ? new Date(session.end_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null,
+                    breakMinutes: session.total_break_minutes || 0,
+                    totalMinutes: session.net_work_minutes || 0
+                }));
+                setSessions(formattedSessions);
+            }
+            setLoading(false);
+        };
+
+        loadSessions();
+    }, []);
+
     const filteredSessions = useMemo(() => {
-        let result = [...mockHistorySessions];
+        let result = [...sessions];
 
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -48,7 +93,7 @@ export default function HistoryPage() {
         return result.sort((a, b) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
         );
-    }, [startDate, endDate, searchTerm]);
+    }, [sessions, startDate, endDate, searchTerm]);
 
     const handleExport = (format: 'CSV' | 'Excel' | 'PDF') => {
         const exportData = filteredSessions.map(s => ({
@@ -66,6 +111,14 @@ export default function HistoryPage() {
         if (format === 'Excel') exportToExcel(exportData, fileName);
         if (format === 'PDF') exportToPDF(exportData, fileName, 'Reporte de Historial de Jornadas');
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <motion.div

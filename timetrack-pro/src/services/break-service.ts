@@ -1,5 +1,7 @@
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { Break } from '@/types/models';
+
+const supabase = createClient();
 
 export const BreakService = {
     async startBreak(sessionId: string, type: Break['break_type']): Promise<Break | null> {

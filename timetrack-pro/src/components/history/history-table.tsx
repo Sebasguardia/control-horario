@@ -1,6 +1,5 @@
 "use client";
 
-import { mockUser } from "@/mocks/mock-data";
 import { formatHoursMinutes, cn } from "@/lib/utils";
 import {
     Clock,
@@ -39,9 +38,23 @@ export function HistoryTable({ filteredSessions }: HistoryTableProps) {
         currentPage * recordsPerPage
     );
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (deletingSessionId) {
-            addNotification("Registro Eliminado", "La jornada ha sido eliminada del historial.", "success");
+            const { createClient } = await import("@/lib/supabase/client");
+            const supabase = createClient();
+
+            const { error } = await supabase
+                .from('work_sessions')
+                .delete()
+                .eq('id', deletingSessionId);
+
+            if (!error) {
+                addNotification("Registro Eliminado", "La jornada ha sido eliminada del historial.", "success");
+                // Recargar la página para actualizar la lista
+                window.location.reload();
+            } else {
+                addNotification("Error", "No se pudo eliminar la jornada.", "error");
+            }
             setDeletingSessionId(null);
         }
     };
@@ -65,7 +78,7 @@ export function HistoryTable({ filteredSessions }: HistoryTableProps) {
                             currentRecords.map((session, index) => {
                                 const date = new Date(session.date);
                                 const netMinutes = session.totalMinutes || 0;
-                                const targetMinutes = (mockUser.expected_hours_per_day || 8) * 60;
+                                const targetMinutes = 8 * 60; // 8 horas por defecto
                                 const diff = netMinutes - targetMinutes;
 
                                 return (

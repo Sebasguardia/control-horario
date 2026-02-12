@@ -1,23 +1,34 @@
 "use client";
 
-import { Bell, Mail, Search, Command, Moon, Sun, CheckCircle2, Coffee } from "lucide-react";
-import { mockUser } from "@/mocks/mock-data";
+import { Bell, Search, Command, Moon, Sun, CheckCircle2, Coffee } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-
 import { useNotification } from "@/contexts/notification-context";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export default function Navbar() {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
 
     const { notifications, unreadCount, markAllAsRead } = useNotification();
 
-    // Prevent hydration mismatch
+    // Prevent hydration mismatch and load user
     useEffect(() => {
         setMounted(true);
+
+        const loadUser = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+            setLoading(false);
+        };
+
+        loadUser();
     }, []);
 
     const toggleTheme = () => {
@@ -134,16 +145,26 @@ export default function Navbar() {
 
                 {/* User Profile */}
                 <div className="flex items-center gap-4 pl-4">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm border border-slate-100 dark:border-slate-700">
-                        <img
-                            src={mockUser.avatar_url}
-                            alt="User"
-                            className="h-full w-full object-cover"
-                        />
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm border border-slate-100 dark:border-slate-700 bg-emerald-600 flex items-center justify-center">
+                        {user?.user_metadata?.avatar_url ? (
+                            <img
+                                src={user.user_metadata.avatar_url}
+                                alt="User"
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-white font-black text-lg">
+                                {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                        )}
                     </div>
-                    <div className="hidden xl:block">
-                        <p className="text-base font-black text-slate-800 dark:text-slate-200 leading-tight">{mockUser.full_name}</p>
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 lowercase">{mockUser.email}</p>
+                    <div className="hidden xl:block text-left">
+                        <p className="text-base font-black text-slate-800 dark:text-slate-200 leading-tight">
+                            {user?.user_metadata?.full_name || 'Usuario'}
+                        </p>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 lowercase">
+                            {user?.email || 'cargando...'}
+                        </p>
                     </div>
                 </div>
             </div>

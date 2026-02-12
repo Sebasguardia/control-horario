@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useNotification } from "@/contexts/notification-context";
+import { createClient } from "@/lib/supabase/client";
 
 const menuItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -35,10 +36,12 @@ export default function Sidebar() {
     const router = useRouter();
     const { addNotification } = useNotification();
 
-    const handleLogout = () => {
-        document.cookie = "sb-mock-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
+    const handleLogout = async () => {
+        const supabase = createClient();
+        await supabase.auth.signOut();
         addNotification("Sesión Cerrada", "Has salido de tu cuenta correctamente.", "info");
         router.push("/login");
+        router.refresh();
     };
 
     return (
