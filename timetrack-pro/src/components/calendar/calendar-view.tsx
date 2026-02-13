@@ -121,7 +121,10 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
         ).pop();
 
         return {
-            bestDayStr: bestDay ? new Date(bestDay.dateStr).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' }) : '-',
+            bestDayStr: bestDay ? (() => {
+                const [y, m, d] = bestDay.dateStr.split('-').map(Number);
+                return new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
+            })() : '-',
             bestDayHours: formatHoursMinutes(maxMinutes),
             avgDaily: formatHoursMinutes(avgMinutes),
             typicalStart: modeStartTime || '-'
@@ -133,7 +136,7 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
     }, [selectedDay, sessionsMap]);
 
     return (
-        <div className="flex flex-col gap-6 lg:gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* Calendar Main Section */}
             <div className="flex-1 rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 lg:p-8 shadow-sm">
                 {/* Header */}
@@ -187,9 +190,9 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
                         if (!item) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 dark:bg-slate-800/20 rounded-lg sm:rounded-xl" />;
 
                         const { day, dateStr, session } = item;
-                        const dateObj = new Date(dateStr);
+                        const dateObj = new Date(year, month, day);
                         const isToday = new Date().toDateString() === dateObj.toDateString();
-                        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                        const isWeekend = dateObj.getDay() === 0; // Only Sunday is treated as weekend visually
                         const isFuture = dateObj > new Date();
 
                         // Calculate balance if session exists

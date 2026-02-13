@@ -11,7 +11,8 @@ import {
     Settings,
     HelpCircle,
     Timer,
-    LogOut
+    LogOut,
+    Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
