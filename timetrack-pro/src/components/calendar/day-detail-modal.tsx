@@ -18,7 +18,8 @@ export function DayDetailModal({ selectedDay, setSelectedDay, session }: DayDeta
 
     if (!selectedDay) return null;
 
-    const dateObj = new Date(selectedDay);
+    const [year, month, day] = selectedDay.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
     const targetMinutes = (user?.expected_hours_per_day || 8) * 60;
     const netMinutes = session?.totalMinutes || 0;
     const diff = netMinutes - targetMinutes;
