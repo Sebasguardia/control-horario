@@ -47,9 +47,16 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             const days = [];
             const temp = new Date(periodStart);
             for (let i = 0; i < 7; i++) {
-                const dateStr = temp.toISOString().split('T')[0];
-                const session = sessions.find(s => s.date === dateStr);
-                const hours = session ? Number((session.totalMinutes / 60).toFixed(1)) : 0;
+                // Manual format YYYY-MM-DD to match session.date exactly
+                const y = temp.getFullYear();
+                const m = String(temp.getMonth() + 1).padStart(2, '0');
+                const d = String(temp.getDate()).padStart(2, '0');
+                const dateStr = `${y}-${m}-${d}`;
+
+                // Sum all sessions for this specific day
+                const daySessions = sessions.filter(s => s.date === dateStr);
+                const totalMinutes = daySessions.reduce((acc, s) => acc + (s.totalMinutes || 0), 0);
+                const hours = Number((totalMinutes / 60).toFixed(1));
 
                 days.push({
                     name: temp.toLocaleDateString("es-ES", { weekday: 'short' }),
@@ -60,7 +67,6 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             }
             return days;
         } else if (dateRange === "month") {
-            // Group by weeks
             const weeks = [];
             const temp = new Date(periodStart);
             const end = new Date(periodEnd);
@@ -71,23 +77,23 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             while (currentWeekStart <= end) {
                 const currentWeekEnd = new Date(currentWeekStart);
                 currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+                currentWeekEnd.setHours(23, 59, 59, 999);
 
-                // Effective end of week (clamp to month end)
                 const effectiveEnd = currentWeekEnd > end ? end : currentWeekEnd;
 
                 let totalMinutes = 0;
                 let daysCount = 0;
 
-                // Sum sessions in this week range
+                // Sum sessions in this week range using string comparison for safety
                 sessions.forEach(s => {
-                    const d = new Date(s.date);
-                    if (d >= currentWeekStart && d <= effectiveEnd) {
-                        totalMinutes += s.totalMinutes;
+                    const [y, m, d] = s.date.split('-').map(Number);
+                    const sessionDate = new Date(y, m - 1, d);
+
+                    if (sessionDate >= currentWeekStart && sessionDate <= effectiveEnd) {
+                        totalMinutes += (s.totalMinutes || 0);
                     }
                 });
 
-                // Calculate working days in period (simple approximation: M-F)
-                // Better: Iterate days
                 let iter = new Date(currentWeekStart);
                 while (iter <= effectiveEnd) {
                     if (iter.getDay() !== 0 && iter.getDay() !== 6) daysCount++;
@@ -109,16 +115,17 @@ export function ReportChart({ sessions, dateRange, periodStart, periodEnd }: Rep
             const temp = new Date(periodStart);
             for (let i = 0; i < 3; i++) {
                 const monthStart = new Date(temp.getFullYear(), temp.getMonth() + i, 1);
-                const monthEnd = new Date(temp.getFullYear(), temp.getMonth() + i + 1, 0);
+                const monthEnd = new Date(temp.getFullYear(), temp.getMonth() + i + 1, 0, 23, 59, 59, 999);
 
                 let totalMinutes = 0;
-                // Sum sessions in month
                 sessions.forEach(s => {
-                    const d = new Date(s.date);
-                    if (d >= monthStart && d <= monthEnd) totalMinutes += s.totalMinutes;
+                    const [y, m, d] = s.date.split('-').map(Number);
+                    const sessionDate = new Date(y, m - 1, d);
+                    if (sessionDate >= monthStart && sessionDate <= monthEnd) {
+                        totalMinutes += (s.totalMinutes || 0);
+                    }
                 });
 
-                // Target? Approx 22 days * 8h
                 months.push({
                     name: monthStart.toLocaleDateString('es-ES', { month: 'short' }),
                     hours: Number((totalMinutes / 60).toFixed(1)),

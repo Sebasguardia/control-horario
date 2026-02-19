@@ -3,6 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { WorkSession, Break } from '@/types/models';
 import { SessionService } from '@/services/session-service';
 import { BreakService } from '@/services/break-service';
+import { enrichSessionContext, toEnrichmentData, EnrichmentResult } from '@/services/context-enrichment-service';
+
+export type EnrichmentStatus = 'idle' | 'loading' | 'success' | 'partial-error' | 'error';
 
 interface SessionState {
     currentSession: WorkSession | null;
@@ -12,6 +15,8 @@ interface SessionState {
     breakSeconds: number;
     status: 'idle' | 'running' | 'paused' | 'break';
     isLoading: boolean;
+    enrichmentStatus: EnrichmentStatus;
+    enrichmentErrors: string[];
 
     startSession: (userId: string) => Promise<void>;
     stopSession: (notes?: string) => Promise<void>;
@@ -33,10 +38,56 @@ export const useSessionStore = create<SessionState>()(
             breakSeconds: 0,
             status: 'idle',
             isLoading: false,
+            enrichmentStatus: 'idle',
+            enrichmentErrors: [],
 
             startSession: async (userId: string) => {
-                set({ isLoading: true });
-                const session = await SessionService.startSession(userId);
+                set({ isLoading: true, enrichmentStatus: 'loading', enrichmentErrors: [] });
+
+                // ═══════════════════════════════════════════════════
+                // STEP 1: Get user's geolocation (if available)
+                // ═══════════════════════════════════════════════════
+                let lat: number | undefined;
+                let lng: number | undefined;
+
+                try {
+                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        if (!navigator.geolocation) {
+                            reject(new Error('Geolocation not supported'));
+                            return;
+                        }
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            timeout: 5000,
+                            maximumAge: 300000, // 5 min cache
+                        });
+                    });
+                    lat = position.coords.latitude;
+                    lng = position.coords.longitude;
+                } catch (geoError) {
+                    console.warn('[Session] Geolocation unavailable:', geoError);
+                }
+
+                // ═══════════════════════════════════════════════════
+                // STEP 2: Fetch weather + holidays in PARALLEL
+                // Uses Promise.allSettled inside enrichSessionContext
+                // ═══════════════════════════════════════════════════
+                let enrichmentResult: EnrichmentResult | null = null;
+                try {
+                    enrichmentResult = await enrichSessionContext(lat, lng, 'PE');
+                } catch (error) {
+                    console.error('[Session] Enrichment failed entirely:', error);
+                }
+
+                // ═══════════════════════════════════════════════════
+                // STEP 3: Create session with enrichment data
+                // Session is ALWAYS created, even if enrichment failed
+                // ═══════════════════════════════════════════════════
+                const enrichmentData = enrichmentResult
+                    ? toEnrichmentData(enrichmentResult)
+                    : undefined;
+
+                const session = await SessionService.startSession(userId, enrichmentData);
+
                 if (session) {
                     set({
                         status: 'running',
@@ -44,9 +95,15 @@ export const useSessionStore = create<SessionState>()(
                         breakSeconds: 0,
                         currentSession: session,
                         isLoading: false,
+                        enrichmentStatus: enrichmentResult?.hasPartialError
+                            ? 'partial-error'
+                            : enrichmentResult
+                                ? 'success'
+                                : 'error',
+                        enrichmentErrors: enrichmentResult?.errors || ['Enrichment service unavailable'],
                     });
                 } else {
-                    set({ isLoading: false });
+                    set({ isLoading: false, enrichmentStatus: 'error', enrichmentErrors: ['Failed to create session'] });
                 }
             },
 
@@ -66,6 +123,12 @@ export const useSessionStore = create<SessionState>()(
                             totalMinutes: updatedSession.net_work_minutes || Math.floor(state.seconds / 60),
                             breakMinutes: updatedSession.total_break_minutes || Math.floor(state.breakSeconds / 60),
                             status: "completed",
+                            start_time: updatedSession.start_time,
+                            weather_condition: updatedSession.weather_condition,
+                            temperature: updatedSession.temperature,
+                            is_holiday: updatedSession.is_holiday,
+                            holiday_name: updatedSession.holiday_name,
+                            notes: updatedSession.notes
                         };
                         set({
                             pastSessions: [newPastSession, ...state.pastSessions],
@@ -75,12 +138,14 @@ export const useSessionStore = create<SessionState>()(
                             seconds: 0,
                             breakSeconds: 0,
                             isLoading: false,
+                            enrichmentStatus: 'idle',
+                            enrichmentErrors: [],
                         });
                     } else {
-                        set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0, isLoading: false });
+                        set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0, isLoading: false, enrichmentStatus: 'idle', enrichmentErrors: [] });
                     }
                 } else {
-                    set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0 });
+                    set({ status: 'idle', currentSession: null, currentBreak: null, seconds: 0, breakSeconds: 0, enrichmentStatus: 'idle', enrichmentErrors: [] });
                 }
             },
 
@@ -129,7 +194,14 @@ export const useSessionStore = create<SessionState>()(
                         totalMinutes: s.net_work_minutes || 0,
                         breakMinutes: s.total_break_minutes || 0,
                         status: s.status,
-                    }));
+                        start_time: s.start_time,
+                        weather_condition: s.weather_condition,
+                        temperature: s.temperature,
+                        is_holiday: s.is_holiday,
+                        holiday_name: s.holiday_name,
+                        notes: s.notes
+                    }))
+                    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
                 set({ pastSessions: formattedSessions, isLoading: false });
             },
 
@@ -162,6 +234,8 @@ export const useSessionStore = create<SessionState>()(
                     breakSeconds: 0,
                     status: 'idle',
                     isLoading: false,
+                    enrichmentStatus: 'idle',
+                    enrichmentErrors: [],
                 });
             },
         }),

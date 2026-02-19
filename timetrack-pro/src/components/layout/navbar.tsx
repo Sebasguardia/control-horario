@@ -33,6 +33,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4 flex-1 max-w-md">
                 <button
                     onClick={toggleSidebar}
+                    aria-label="Abrir menú de navegación"
                     className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 text-slate-500 shadow-sm border border-slate-50 dark:border-slate-700 active:scale-95"
                 >
                     <Menu size={20} />
@@ -70,6 +71,7 @@ export default function Navbar() {
                     <div className="relative">
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
+                            aria-label="Notificaciones"
                             className={cn(
                                 "relative flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-sm transition-all active:scale-95 border",
                                 showNotifications

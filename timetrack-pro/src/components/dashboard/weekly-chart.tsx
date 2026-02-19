@@ -85,6 +85,12 @@ export default function WeeklyChart() {
         }
     }, [user, currentSession?.status]);
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     if (isLoadingStats && data.length === 0 && user) {
         const skeletonHeights = ['60%', '40%', '80%', '50%', '70%', '45%', '90%'];
         return (
@@ -102,31 +108,33 @@ export default function WeeklyChart() {
     return (
         <div className="rounded-[2rem] sm:rounded-[2.5rem] bg-white dark:bg-slate-900 p-5 sm:p-8 shadow-sm h-full border border-slate-50 dark:border-slate-800">
             <h3 className="mb-4 sm:mb-6 text-lg sm:text-xl font-bold tracking-tight text-slate-800 dark:text-white">Rendimiento Semanal</h3>
-            <div className="h-[300px] sm:h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} barSize={20}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
-                            dy={10}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
-                            dx={-10}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F1F5F9', opacity: 0.4 }} />
-                        <Bar dataKey="hours" radius={[6, 6, 6, 6]}>
-                            {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.hours >= (user?.expected_hours_per_day || 8) ? '#166534' : '#cbd5e1'} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <div className="h-[300px] sm:h-[400px] w-full min-h-0">
+                {mounted && (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data} barSize={20}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                            <XAxis
+                                dataKey="name"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                                dy={10}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                                dx={-10}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F1F5F9', opacity: 0.4 }} />
+                            <Bar dataKey="hours" radius={[6, 6, 6, 6]}>
+                                {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.hours >= (user?.expected_hours_per_day || 8) ? '#166534' : '#cbd5e1'} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                )}
             </div>
         </div>
     );

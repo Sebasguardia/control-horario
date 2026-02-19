@@ -110,6 +110,40 @@ export function DayDetailModal({ selectedDay, setSelectedDay, session }: DayDeta
                             </div>
                         </div>
 
+                        {/* Weather & Holiday Context */}
+                        {(session.weather_condition || session.is_holiday) && (
+                            <div className="col-span-2 rounded-[2rem] border border-blue-100 dark:border-blue-900/30 p-6 bg-blue-50/30 dark:bg-blue-900/10">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600/60 dark:text-blue-400/60 mb-3">Contexto de la Jornada</p>
+                                <div className="flex flex-wrap gap-4">
+                                    {session.weather_condition && (
+                                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                                            <span className="text-xl">
+                                                {session.weather_condition === 'Clear' ? '☀️' :
+                                                    session.weather_condition === 'Clouds' ? '☁️' :
+                                                        session.weather_condition === 'Rain' ? '🌧️' :
+                                                            session.weather_condition === 'Drizzle' ? '🌦️' :
+                                                                session.weather_condition === 'Thunderstorm' ? '⛈️' :
+                                                                    session.weather_condition === 'Snow' ? '❄️' : '🌡️'}
+                                            </span>
+                                            <div>
+                                                <p className="text-[10px] font-bold uppercase text-blue-500/50">Clima</p>
+                                                <p className="text-sm font-black">{session.weather_condition} {session.temperature}°C</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {session.is_holiday && (
+                                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                                            <span className="text-xl">🎉</span>
+                                            <div>
+                                                <p className="text-[10px] font-bold uppercase text-amber-500/50">Festivo</p>
+                                                <p className="text-sm font-black">{session.holiday_name || 'Día No Laborable'}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="col-span-2 rounded-[2.5rem] bg-[#1A202C] dark:bg-black p-8 text-white relative overflow-hidden shadow-2xl">
                             <div className="absolute top-0 right-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#1A5235] dark:bg-emerald-900 blur-3xl opacity-30 pointer-events-none" />
 

@@ -25,6 +25,7 @@ interface CalendarViewProps {
     selectedDay: string | null;
     setSelectedDay: Dispatch<SetStateAction<string | null>>;
     sessions: any[];
+    holidays?: any[];
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -36,10 +37,8 @@ function getFirstDayOfMonth(year: number, month: number) {
     return day === 0 ? 6 : day - 1; // Monday = 0
 }
 
-export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSelectedDay, sessions }: CalendarViewProps) {
+export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSelectedDay, sessions, holidays = [] }: CalendarViewProps) {
     const user = useUserStore(state => state.user);
-
-
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -54,9 +53,6 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
     const prevMonth = () => setCurrentDate(new Date(year, month - 1));
     const nextMonth = () => setCurrentDate(new Date(year, month + 1));
 
-    // Fetching logic moved to parent page
-
-
     // Map sessions for easy access
     const sessionsMap = useMemo(() => {
         const map: Record<string, any> = {};
@@ -66,6 +62,15 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
         return map;
     }, [sessions]);
 
+    // Map holidays for easy access
+    const holidaysMap = useMemo(() => {
+        const map: Record<string, any> = {};
+        holidays.forEach(h => {
+            map[h.date] = h;
+        });
+        return map;
+    }, [holidays]);
+
     const days = useMemo(() => {
         const result = [];
         for (let i = 0; i < firstDay; i++) {
@@ -74,10 +79,11 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
             const session = sessionsMap[dateStr];
-            result.push({ day: d, dateStr, session });
+            const holiday = holidaysMap[dateStr];
+            result.push({ day: d, dateStr, session, holiday });
         }
         return result;
-    }, [year, month, daysInMonth, firstDay, sessionsMap]);
+    }, [year, month, daysInMonth, firstDay, sessionsMap, holidaysMap]);
 
     // Monthly stats
     const stats = useMemo(() => {
@@ -90,8 +96,6 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
         const workedDays = uniqueDaysSet.size;
 
         const expectedHours = user?.expected_hours_per_day || 8;
-        // Expected minutes should be based on unique worked days or total working days in month?
-        // Assuming "balance" is against days worked so far.
         const expectedMinutes = workedDays * (expectedHours * 60);
         const balance = totalMinutes - expectedMinutes;
 
@@ -189,7 +193,7 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
                     {days.map((item, i) => {
                         if (!item) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 dark:bg-slate-800/20 rounded-lg sm:rounded-xl" />;
 
-                        const { day, dateStr, session } = item;
+                        const { day, dateStr, session, holiday } = item;
                         const dateObj = new Date(year, month, day);
                         const isToday = new Date().toDateString() === dateObj.toDateString();
                         const isWeekend = dateObj.getDay() === 0; // Only Sunday is treated as weekend visually
@@ -211,25 +215,33 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
                                     "group relative flex aspect-[1/1] flex-col items-center justify-between rounded-xl sm:rounded-2xl p-2 sm:p-3 transition-all duration-300 overflow-visible",
                                     session
                                         ? "bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:shadow-emerald-900/10 dark:hover:shadow-black/40 hover:-translate-y-1 z-0 hover:z-20"
-                                        : isWeekend
-                                            ? "bg-slate-50/50 dark:bg-slate-900/30 border border-transparent"
-                                            : "bg-white/40 dark:bg-slate-800/40 border border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800",
+                                        : holiday
+                                            ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 shadow-sm hover:shadow-md"
+                                            : isWeekend
+                                                ? "bg-slate-50/50 dark:bg-slate-900/30 border border-transparent"
+                                                : "bg-white/40 dark:bg-slate-800/40 border border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800",
                                     isToday && "ring-2 ring-primary ring-offset-2 ring-offset-white dark:ring-offset-slate-900 z-10"
                                 )}
                             >
                                 <div className="flex w-full items-start justify-between">
                                     <span className={cn(
                                         "text-xs sm:text-sm font-black",
-                                        session ? "text-slate-700 dark:text-white" : "text-slate-400 dark:text-slate-600",
-                                        isToday && "text-primary dark:text-emerald-400"
+                                        session || holiday ? "text-slate-700 dark:text-white" : "text-slate-400 dark:text-slate-600",
+                                        isToday && "text-primary dark:text-emerald-400",
+                                        holiday && !session && "text-amber-600 dark:text-amber-400"
                                     )}>{day}</span>
 
-                                    {session && (
-                                        <div className={cn(
-                                            "h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full",
-                                            balance >= 0 ? "bg-emerald-500" : "bg-amber-500"
-                                        )} />
-                                    )}
+                                    <div className="flex gap-1">
+                                        {holiday && (
+                                            <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-amber-500 animate-pulse" title={holiday.localName} />
+                                        )}
+                                        {session && (
+                                            <div className={cn(
+                                                "h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full",
+                                                balance >= 0 ? "bg-emerald-500" : "bg-amber-500"
+                                            )} />
+                                        )}
+                                    </div>
                                 </div>
 
                                 {session ? (
@@ -244,6 +256,10 @@ export function CalendarView({ currentDate, setCurrentDate, selectedDay, setSele
                                             {formatHoursMinutes(session.totalMinutes)}
                                         </p>
                                     </div>
+                                ) : holiday ? (
+                                    <p className="text-[7px] sm:text-[9px] font-black text-amber-600 dark:text-amber-500 text-center leading-tight truncate w-full">
+                                        {holiday.localName}
+                                    </p>
                                 ) : !isFuture && !isWeekend ? (
                                     <div className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-red-100 dark:bg-red-900/20" />
                                 ) : null}

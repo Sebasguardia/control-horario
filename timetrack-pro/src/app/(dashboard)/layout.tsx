@@ -45,6 +45,7 @@ export default function DashboardLayout({
                             <div className="h-full rounded-[1.5rem] bg-[#F7F8F9] dark:bg-slate-900 overflow-hidden border border-transparent dark:border-slate-800/50 relative shadow-2xl">
                                 <button
                                     onClick={() => setSidebarOpen(false)}
+                                    aria-label="Cerrar menú de navegación"
                                     className="absolute top-4 right-4 z-[120] h-10 w-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all shadow-md border border-slate-100 dark:border-slate-700 active:scale-95"
                                 >
                                     <X size={18} />

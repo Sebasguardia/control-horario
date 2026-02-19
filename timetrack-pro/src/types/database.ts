@@ -102,6 +102,10 @@ export interface Database {
                     location_lat: number | null
                     location_lng: number | null
                     status: 'active' | 'completed' | 'paused' | 'break'
+                    weather_condition: string | null
+                    temperature: number | null
+                    is_holiday: boolean
+                    holiday_name: string | null
                     created_at: string
                     updated_at: string
                 }
@@ -117,6 +121,10 @@ export interface Database {
                     location_lat?: number | null
                     location_lng?: number | null
                     status?: 'active' | 'completed' | 'paused' | 'break'
+                    weather_condition?: string | null
+                    temperature?: number | null
+                    is_holiday?: boolean
+                    holiday_name?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -132,6 +140,10 @@ export interface Database {
                     location_lat?: number | null
                     location_lng?: number | null
                     status?: 'active' | 'completed' | 'paused' | 'break'
+                    weather_condition?: string | null
+                    temperature?: number | null
+                    is_holiday?: boolean
+                    holiday_name?: string | null
                     updated_at?: string
                 }
             }

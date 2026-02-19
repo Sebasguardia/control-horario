@@ -55,7 +55,7 @@ export default function Sidebar() {
     };
 
     return (
-        <aside className="relative flex h-full w-full flex-col bg-transparent">
+        <aside aria-label="Menú principal" className="relative flex h-full w-full flex-col bg-transparent">
             {/* Logo Section - Logo y Texto centrados con ajuste a la izquierda */}
             <div className="flex h-24 lg:h-32 w-full items-center justify-center lg:justify-center shrink-0">
                 <div className="flex items-center gap-0 -ml-4 lg:-ml-9">
@@ -91,6 +91,7 @@ export default function Sidebar() {
                                     )}
                                     <Link
                                         href={item.href}
+                                        aria-current={isActive ? "page" : undefined}
                                         className={cn(
                                             "group flex flex-1 items-center gap-4 rounded-xl px-4 py-3.5 text-base font-bold transition-all",
                                             isActive
@@ -138,6 +139,7 @@ export default function Sidebar() {
                         <li className="relative">
                             <button
                                 onClick={handleLogout}
+                                aria-label="Cerrar sesión de usuario"
                                 className="group flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-base font-bold text-slate-400/80 dark:text-slate-500 transition-all hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400"
                             >
                                 <LogOut className="h-6 w-6 shrink-0 text-slate-400 dark:text-slate-600 group-hover:text-red-500 dark:group-hover:text-red-400" />
