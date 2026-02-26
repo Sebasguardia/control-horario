@@ -225,7 +225,7 @@ export default function RegisterPage() {
                                 {acceptTerms && <Check className="h-2.5 w-2.5 text-white stroke-[4]" />}
                             </button>
                             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-500">
-                                Acepto los <Link href="#" className="text-emerald-600 dark:text-emerald-500 hover:underline">Términos</Link> y <Link href="#" className="text-emerald-600 dark:text-emerald-500 hover:underline">Privacidad</Link>.
+                                Acepto los <Link href="/legal" className="text-emerald-600 dark:text-emerald-500 hover:underline">Términos</Link> y <Link href="/legal" className="text-emerald-600 dark:text-emerald-500 hover:underline">Privacidad</Link>.
                             </p>
                         </div>
 

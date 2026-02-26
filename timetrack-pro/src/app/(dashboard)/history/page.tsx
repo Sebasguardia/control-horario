@@ -49,7 +49,7 @@ export default function HistoryPage() {
                 end.toISOString()
             );
 
-            setSessions(fetchedSessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            setSessions(fetchedSessions.sort((a: any, b: any) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()));
 
         } catch (error) {
             console.error("Failed to fetch history:", error);

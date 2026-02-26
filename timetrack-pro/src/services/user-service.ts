@@ -119,7 +119,7 @@ export const UserService = {
         const { error } = await supabase.rpc('delete_user_account');
 
         if (error) {
-            console.error('Error deleting account:', error);
+            console.error('Error deleting account:', JSON.stringify(error, null, 2));
             return { success: false, error };
         }
 

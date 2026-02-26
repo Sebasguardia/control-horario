@@ -71,7 +71,10 @@ export function HistoryTable({ filteredSessions, onDeleteSession }: HistoryTable
                     <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                         {currentRecords.length > 0 ? (
                             currentRecords.map((session, index) => {
-                                const date = new Date(session.date);
+                                // Fix: Manual parsing to avoid UTC->Local day shift
+                                const [y, m, d] = session.date.split('-').map(Number);
+                                const date = new Date(y, m - 1, d);
+
                                 const netMinutes = session.totalMinutes || 0;
                                 const targetMinutes = (user?.expected_hours_per_day || 8) * 60;
                                 const diff = netMinutes - targetMinutes;
@@ -166,7 +169,10 @@ export function HistoryTable({ filteredSessions, onDeleteSession }: HistoryTable
             <div className="lg:hidden space-y-4">
                 {currentRecords.length > 0 ? (
                     currentRecords.map((session, index) => {
-                        const date = new Date(session.date);
+                        // Fix: Manual parsing to avoid UTC->Local day shift
+                        const [y, m, d] = session.date.split('-').map(Number);
+                        const date = new Date(y, m - 1, d);
+
                         const netMinutes = session.totalMinutes || 0;
                         const targetMinutes = (user?.expected_hours_per_day || 8) * 60;
                         const diff = netMinutes - targetMinutes;
@@ -277,48 +283,116 @@ export function HistoryTable({ filteredSessions, onDeleteSession }: HistoryTable
             <Modal
                 isOpen={!!viewingSession}
                 onClose={() => setViewingSession(null)}
-                title="Resumen de Jornada"
+                title="Detalles de la Jornada"
             >
                 {viewingSession && (
-                    <div className="space-y-6 sm:space-y-8 p-1 sm:p-2">
-                        <div className="flex items-center gap-4 sm:gap-5 rounded-[2rem] sm:rounded-[2.5rem] bg-emerald-50/50 dark:bg-emerald-900/20 p-6 sm:p-8 border border-emerald-100 dark:border-emerald-900/30">
-                            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl sm:rounded-3xl bg-[#1A5235] dark:bg-emerald-600 text-white shadow-2xl shadow-emerald-200 dark:shadow-emerald-900/20 shrink-0">
-                                <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8" />
+                    <div className="space-y-6 sm:space-y-8 p-1">
+                        {/* Header Status */}
+                        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#1A5235] to-[#0E3621] p-6 sm:p-8 text-white shadow-xl shadow-emerald-500/10">
+                            <div className="relative z-10 flex items-center gap-5">
+                                <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+                                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-300" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200/60 mb-1">Registro de Actividad</p>
+                                    <h2 className="text-xl sm:text-2xl font-black truncate">Sesión Completada</h2>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-600/60 dark:text-emerald-400/60 mb-1">Estado del registro</p>
-                                <p className="text-lg sm:text-2xl font-black text-[#0E3621] dark:text-emerald-400">Sesión Exitosa</p>
-                            </div>
+                            {/* Decorative element */}
+                            <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                            <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 dark:border-slate-700 p-5 sm:p-6 bg-white dark:bg-slate-800 shadow-sm">
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2 sm:mb-3">Fecha de trabajo</p>
-                                <p className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 leading-snug">
-                                    {new Date(viewingSession.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {/* Main Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="rounded-[1.5rem] bg-white dark:bg-slate-800 p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-500">
+                                        <Inbox className="h-4 w-4" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Fecha y Horario</p>
+                                </div>
+                                <p className="text-sm font-black text-slate-800 dark:text-slate-200 capitalize">
+                                    {(() => {
+                                        const [y, m, dy] = viewingSession.date.split("-").map(Number);
+                                        return new Date(y, m - 1, dy).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                                    })()}
                                 </p>
+                                <p className="text-xs font-bold text-slate-500 mt-1">{viewingSession.startTime} — {viewingSession.endTime || '--:--'}</p>
                             </div>
-                            <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 dark:border-slate-700 p-5 sm:p-6 bg-white dark:bg-slate-800 shadow-sm">
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2 sm:mb-3">Horario</p>
-                                <p className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 leading-snug">{viewingSession.startTime} — {viewingSession.endTime}</p>
-                            </div>
-                            <div className="rounded-[1.5rem] sm:rounded-[2rem] border-2 border-[#1A5235]/20 dark:border-emerald-500/20 p-5 sm:p-6 bg-emerald-50/20 dark:bg-emerald-900/10">
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-[#1A5235]/60 dark:text-emerald-400/60 mb-2 sm:mb-3">Tiempo Trabajado</p>
-                                <p className="text-xl sm:text-2xl font-black text-[#1A5235] dark:text-emerald-400">
+
+                            <div className="rounded-[1.5rem] bg-white dark:bg-slate-800 p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+                                        <ArrowUpRight className="h-4 w-4" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Inversión de Tiempo</p>
+                                </div>
+                                <p className="text-xl font-black text-slate-800 dark:text-white">
                                     {formatHoursMinutes(viewingSession.totalMinutes)}
                                 </p>
-                            </div>
-                            <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-amber-100 dark:border-amber-900/30 p-5 sm:p-6 bg-amber-50/30 dark:bg-amber-900/10">
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-amber-600/60 dark:text-amber-400/60 mb-2 sm:mb-3">Pausas</p>
-                                <p className="text-xl sm:text-2xl font-black text-amber-700 dark:text-amber-400">
-                                    {viewingSession.breakMinutes} min
-                                </p>
+                                <p className="text-xs font-bold text-slate-500 mt-1">{viewingSession.breakMinutes} min en pausas</p>
                             </div>
                         </div>
 
-                        <button onClick={() => setViewingSession(null)} className="w-full rounded-2xl bg-[#0E3621] dark:bg-white py-4 sm:py-5 text-xs sm:text-sm font-black uppercase tracking-widest text-white dark:text-slate-900 shadow-xl hover:bg-black dark:hover:bg-slate-200 transition-all active:scale-95">
-                            Cerrar Detalles
-                        </button>
+                        {/* Weather & Context Context */}
+                        {(viewingSession.weather_condition || viewingSession.is_holiday) && (
+                            <div className="rounded-[1.5rem] bg-slate-50 dark:bg-slate-800/40 p-6 border border-slate-100 dark:border-slate-700/50">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4 px-1">Contexto Ambiental</h4>
+                                <div className="flex flex-wrap gap-4">
+                                    {viewingSession.weather_condition && (
+                                        <div className="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex-1">
+                                            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-500 text-xl">
+                                                {viewingSession.weather_condition === 'Clear' ? '☀️' :
+                                                    viewingSession.weather_condition === 'Rain' ? '🌧️' : '☁️'}
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Clima al iniciar</p>
+                                                <p className="text-sm font-black text-slate-700 dark:text-slate-200">
+                                                    {viewingSession.temperature}°C, {
+                                                        viewingSession.weather_condition === 'Clear' ? 'Despejado' :
+                                                            viewingSession.weather_condition === 'Clouds' ? 'Nublado' :
+                                                                viewingSession.weather_condition === 'Rain' ? 'Lluvia' : viewingSession.weather_condition
+                                                    }
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {viewingSession.is_holiday && (
+                                        <div className="flex items-center gap-3 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-3 rounded-2xl border border-amber-100 dark:border-amber-900/30 shadow-sm flex-1">
+                                            <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600">
+                                                🎉
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-amber-600/80 dark:text-amber-400/80 uppercase tracking-tighter">Feriado</p>
+                                                <p className="text-sm font-black text-amber-700 dark:text-amber-300">
+                                                    {viewingSession.holiday_name}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Notes Section */}
+                        {viewingSession.notes && (
+                            <div className="rounded-[1.5rem] bg-white dark:bg-slate-800 p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Notas de la sesión</p>
+                                <p className="text-sm font-medium text-slate-600 dark:text-slate-300 italic">
+                                    "{viewingSession.notes}"
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setViewingSession(null)}
+                                className="flex-1 rounded-2xl bg-slate-100 dark:bg-slate-800 py-4 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                            >
+                                Cerrar Ventana
+                            </button>
+                        </div>
                     </div>
                 )}
             </Modal>

@@ -189,7 +189,10 @@ export default function ReportsPage() {
                                     </div>
                                 )}
                                 {!loading && sessions.map((session, i) => {
-                                    const date = new Date(session.date);
+                                    // Fix: Manual parsing to avoid UTC->Local shift
+                                    const [y, m, d] = session.date.split('-').map(Number);
+                                    const date = new Date(y, m - 1, d);
+
                                     return (
                                         <motion.div
                                             layout
@@ -205,7 +208,7 @@ export default function ReportsPage() {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-[11px] sm:text-xs font-black text-slate-800 dark:text-white">
-                                                    {session.startTime} - {session.endTime}
+                                                    {session.startTime} - {session.endTime || 'En curso'}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-300 dark:text-slate-600" />

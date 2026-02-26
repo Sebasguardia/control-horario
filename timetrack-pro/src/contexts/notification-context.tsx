@@ -146,11 +146,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const TOAST_DURATION = 3500;
 
     const [dailyNotificationsSent, setDailyNotificationsSent] = useState<{
+        onTimeStart: boolean;
         lateStart: boolean;
         workEnd: boolean;
+        lastResetDay: string;
     }>({
+        onTimeStart: false,
         lateStart: false,
         workEnd: false,
+        lastResetDay: new Date().toDateString(),
     });
 
     const addNotification = useCallback((title: string, message: string, type: NotificationType) => {
@@ -162,7 +166,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             id: Math.random().toString(36).substr(2, 9),
             title,
             message,
-            time: "Ahora",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             type,
             read: false,
         };
@@ -219,33 +223,61 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
 
     const checkWorkSchedule = useCallback(() => {
-        if (!user) return; // Don't check if no user
+        if (!user) return;
 
         const now = new Date();
+        const todayStr = now.toDateString();
+
+        // Reset daily flags if day changed
+        if (dailyNotificationsSent.lastResetDay !== todayStr) {
+            setDailyNotificationsSent({
+                onTimeStart: false,
+                lateStart: false,
+                workEnd: false,
+                lastResetDay: todayStr
+            });
+            return;
+        }
+
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
-        const currentTimeDecimal = currentHour + currentMinute / 60;
+
+        // Calcular minutos totales desde medianoche para comparación precisa
+        const currentTotalMinutes = currentHour * 60 + currentMinute;
 
         const [startHourStr, startMinuteStr] = (user.schedule_start || "08:00").split(':');
         const [endHourStr, endMinuteStr] = (user.schedule_end || "17:00").split(':');
 
-        const startTimeDecimal = parseInt(startHourStr) + parseInt(startMinuteStr) / 60;
-        const endTimeDecimal = parseInt(endHourStr) + parseInt(endMinuteStr) / 60;
+        const startTotalMinutes = parseInt(startHourStr) * 60 + parseInt(startMinuteStr);
+        const endTotalMinutes = parseInt(endHourStr) * 60 + parseInt(endMinuteStr);
 
+        // 1. Notificación JUSTO a la hora de entrada (en el mismo minuto)
         if (
             status === 'idle' &&
-            currentTimeDecimal > startTimeDecimal &&
-            currentTimeDecimal < startTimeDecimal + 2 &&
+            currentTotalMinutes === startTotalMinutes &&
+            !dailyNotificationsSent.onTimeStart
+        ) {
+            addNotification("Inicio de Jornada", `Es hora de empezar. Tu horario de entrada es a las ${user.schedule_start}.`, "info");
+            setDailyNotificationsSent(prev => ({ ...prev, onTimeStart: true }));
+        }
+
+        // 2. Notificación de Retraso (si ya pasó el minuto de entrada)
+        // Se activa si es > startMinutes y está dentro de la primera hora de retraso
+        if (
+            status === 'idle' &&
+            currentTotalMinutes > startTotalMinutes &&
+            currentTotalMinutes < startTotalMinutes + 60 &&
             !dailyNotificationsSent.lateStart
         ) {
-            addNotification("Inicio de Jornada Pendiente", `Ya ha pasado tu hora de entrada.`, "warning");
+            addNotification("Entrada con Retraso", `Ya te has pasado de tu hora de entrada (${user.schedule_start}). ¡Inicia tu jornada ahora!`, "warning");
             setDailyNotificationsSent(prev => ({ ...prev, lateStart: true }));
         }
 
+        // 3. Notificación de Fin de Jornada
         if (
             status === 'running' &&
-            currentTimeDecimal >= endTimeDecimal &&
-            currentTimeDecimal < endTimeDecimal + 1 &&
+            currentTotalMinutes >= endTotalMinutes &&
+            currentTotalMinutes < endTotalMinutes + 30 && // Ventana de 30 mins para avisar
             !dailyNotificationsSent.workEnd
         ) {
             addNotification("Fin de Jornada Laboral", `Ya has cumplido tu horario de salida (${user.schedule_end}).`, "success");
@@ -255,8 +287,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }, [status, dailyNotificationsSent, addNotification, user]);
 
     useEffect(() => {
-        const interval = setInterval(checkWorkSchedule, 60000);
+        // Revisar cada 10 segundos para mayor precisión en tiempo real
+        const interval = setInterval(checkWorkSchedule, 10000);
+
+        // Ejecutar inmediatamente también
         checkWorkSchedule();
+
         return () => clearInterval(interval);
     }, [checkWorkSchedule]);
 

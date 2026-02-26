@@ -29,6 +29,10 @@ export interface WorkSession {
     location_lng?: number;
     project_id?: string;
     status: 'active' | 'completed' | 'paused' | 'break';
+    weather_condition?: string | null;
+    temperature?: number | null;
+    is_holiday?: boolean;
+    holiday_name?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -64,7 +68,9 @@ export interface UserPreferences {
     notifications_enabled: boolean;
     break_reminders: boolean;
     overtime_alerts: boolean;
+    exit_reminder: boolean;
     language: string;
+    work_days_per_week: number;
     created_at: string;
     updated_at: string;
 }

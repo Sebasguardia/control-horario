@@ -4,7 +4,7 @@ import { useTimer } from "@/hooks/use-timer";
 import { formatTime, cn } from "@/lib/utils";
 import { Play, Square, Coffee, Clock, Utensils, Moon } from "lucide-react";
 import { motion } from "framer-motion";
-
+import SessionContextBadge from "./session-context-badge";
 
 import { useUserStore } from "@/stores/user-store";
 import { useNotification } from "@/contexts/notification-context";
@@ -70,7 +70,7 @@ export default function TimeTracker() {
 
                 {/* Status Pill */}
                 <div className={cn(
-                    "mb-6 lg:mb-8 flex items-center gap-2 rounded-full px-4 lg:px-5 py-1.5 lg:py-2 text-[10px] lg:text-[11px] font-black uppercase tracking-wider transition-all border",
+                    "mb-4 lg:mb-5 flex items-center gap-2 rounded-full px-4 lg:px-5 py-1.5 lg:py-2 text-[10px] lg:text-[11px] font-black uppercase tracking-wider transition-all border",
                     status === 'running' ? "bg-green-50/50 dark:bg-emerald-900/20 text-primary dark:text-emerald-400 border-green-100 dark:border-emerald-900/50" :
                         status === 'break' ? "bg-amber-50/50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50" :
                             "bg-slate-50/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800"
@@ -82,6 +82,11 @@ export default function TimeTracker() {
                                 "bg-slate-300 dark:bg-slate-600"
                     )} />
                     {status === 'idle' ? "Inactivo" : status === 'break' ? "En Pausa" : "En Marcha"}
+                </div>
+
+                {/* Context Badge (Weather + Holiday) */}
+                <div className="mb-3 lg:mb-4">
+                    <SessionContextBadge />
                 </div>
 
                 {/* Main Timer */}
@@ -101,6 +106,7 @@ export default function TimeTracker() {
                     {status === 'idle' ? (
                         <button
                             onClick={handleStart}
+                            aria-label="Iniciar jornada laboral"
                             className="group flex h-14 lg:h-16 w-full items-center justify-center gap-3 rounded-full bg-[#1A5235] px-8 lg:px-10 text-[14px] lg:text-[15px] font-black text-white shadow-xl shadow-primary/20 dark:shadow-primary/10 transition-all hover:bg-emerald-900 hover:-translate-y-1 active:scale-95"
                         >
                             <Play className="h-4 w-4 lg:h-5 lg:w-5 fill-current" />
@@ -112,6 +118,7 @@ export default function TimeTracker() {
                             <div className="grid grid-cols-3 gap-2 lg:gap-3">
                                 <button
                                     onClick={() => handleBreakToggle('lunch')}
+                                    aria-label="Pausa para comida"
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-1.5 lg:gap-2 rounded-2xl py-3 lg:py-4 transition-all active:scale-95 border",
                                         status === 'break'
@@ -125,6 +132,7 @@ export default function TimeTracker() {
                                 </button>
                                 <button
                                     onClick={() => handleBreakToggle('short')}
+                                    aria-label={status === 'break' ? "Reanudar trabajo" : "Pausa de descanso"}
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-1.5 lg:gap-2 rounded-2xl py-3 lg:py-4 transition-all active:scale-95 border",
                                         status === 'break'
@@ -139,6 +147,7 @@ export default function TimeTracker() {
                                 </button>
                                 <button
                                     onClick={() => handleBreakToggle('personal')}
+                                    aria-label="Pausa personal"
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-1.5 lg:gap-2 rounded-2xl py-3 lg:py-4 transition-all active:scale-95 border",
                                         status === 'break'
@@ -155,6 +164,7 @@ export default function TimeTracker() {
                             {/* Finish Button */}
                             <button
                                 onClick={handleStop}
+                                aria-label="Finalizar jornada laboral"
                                 className="flex h-14 lg:h-16 w-full items-center justify-center gap-3 rounded-full bg-red-500 dark:bg-red-600 px-6 lg:px-8 text-[14px] lg:text-[15px] font-black text-white shadow-xl shadow-red-200 dark:shadow-red-900/20 transition-all hover:bg-red-600 dark:hover:bg-red-700 hover:-translate-y-1 active:scale-95"
                             >
                                 <Square className="h-4 w-4 lg:h-5 lg:w-5 fill-current" />

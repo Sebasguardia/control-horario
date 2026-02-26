@@ -64,7 +64,21 @@ const config: Config = {
             },
             boxShadow: {
                 premium: "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)",
-            }
+            },
+            keyframes: {
+                "accordion-down": {
+                    from: { height: "0" },
+                    to: { height: "var(--radix-accordion-content-height)" },
+                },
+                "accordion-up": {
+                    from: { height: "var(--radix-accordion-content-height)" },
+                    to: { height: "0" },
+                },
+            },
+            animation: {
+                "accordion-down": "accordion-down 0.2s ease-out",
+                "accordion-up": "accordion-up 0.2s ease-out",
+            },
         },
     },
     plugins: [],

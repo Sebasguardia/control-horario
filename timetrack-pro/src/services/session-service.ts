@@ -1,14 +1,41 @@
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { WorkSession } from '@/types/models';
+import { EnrichmentData } from './context-enrichment-service';
 
 export const SessionService = {
-    async startSession(userId: string): Promise<WorkSession | null> {
+    async startSession(userId: string, enrichment?: EnrichmentData): Promise<WorkSession | null> {
         const supabase = getSupabaseClient();
-        const { data, error } = await (supabase as any)
+        const baseData: any = {
+            user_id: userId,
+            start_time: new Date().toISOString(),
+        };
+
+        const insertData: any = enrichment
+            ? {
+                ...baseData,
+                weather_condition: enrichment.weather_condition,
+                temperature: enrichment.temperature,
+                is_holiday: enrichment.is_holiday,
+                holiday_name: enrichment.holiday_name,
+            }
+            : baseData;
+
+        let { data, error } = await (supabase as any)
             .from('work_sessions')
-            .insert({ user_id: userId, start_time: new Date().toISOString() } as any)
+            .insert(insertData)
             .select()
             .single();
+
+        // Fallback: if insert fails with enrichment (e.g. migration not yet applied),
+        // retry without enrichment columns to ensure session is always created
+        if (error && enrichment) {
+            console.warn('[SessionService] Insert with enrichment failed, retrying without:', error.message || error);
+            ({ data, error } = await (supabase as any)
+                .from('work_sessions')
+                .insert(baseData)
+                .select()
+                .single());
+        }
 
         if (error) {
             console.error('Error starting session:', error);

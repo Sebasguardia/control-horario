@@ -12,12 +12,32 @@ export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<string | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<any[]>([]);
     const { title, subtitle, setTitle } = usePageStore();
     const user = useUserStore(state => state.user);
 
     useEffect(() => {
         setTitle("Calendario", "Vista mensual de tu asistencia.");
     }, [setTitle]);
+
+    const fetchHolidays = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/holidays?countryCode=PE`);
+            if (!res.ok) return;
+            // The API we have now returns { isHoliday, holidayName, upcomingHolidays }
+            // But for the calendar, we need ALL holidays of the year.
+            // Let's create a more general API or just use the one that fetches all for the year.
+            // Actually, Nager.Date has /PublicHolidays/{year}/{countryCode}
+            const year = currentDate.getFullYear();
+            const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PE`);
+            if (response.ok) {
+                const data = await response.json();
+                setHolidays(data);
+            }
+        } catch (error) {
+            console.error("Error fetching holidays:", error);
+        }
+    }, [currentDate]);
 
     const fetchSessions = useCallback(async () => {
         if (!user) return;
@@ -33,7 +53,8 @@ export default function CalendarPage() {
 
     useEffect(() => {
         fetchSessions();
-    }, [fetchSessions]);
+        fetchHolidays();
+    }, [fetchSessions, fetchHolidays]);
 
     const selectedSession = sessions.find(s => s.date === selectedDay?.split('T')[0]) || null;
 
@@ -63,6 +84,7 @@ export default function CalendarPage() {
                         selectedDay={selectedDay}
                         setSelectedDay={setSelectedDay}
                         sessions={sessions}
+                        holidays={holidays}
                     />
                 </div>
             </motion.div>

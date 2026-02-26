@@ -18,12 +18,13 @@
 4. [Requerimientos No Funcionales](#4-requerimientos-no-funcionales)
 5. [Arquitectura del Sistema](#5-arquitectura-del-sistema)
 6. [Stack Tecnológico](#6-stack-tecnológico)
-7. [Modelo de Datos](#7-modelo-de-datos)
-8. [Especificaciones de UI/UX](#8-especificaciones-de-uiux)
-9. [Seguridad y Autenticación](#9-seguridad-y-autenticación)
-10. [Casos de Uso](#10-casos-de-uso)
-11. [Cronograma de Desarrollo](#11-cronograma-de-desarrollo)
-12. [Glosario](#12-glosario)
+7. [Estándares Técnicos](#7-estándares-técnicos)
+8. [Modelo de Datos](#8-modelo-de-datos)
+9. [Especificaciones de UI/UX](#9-especificaciones-de-uiux)
+10. [Seguridad y Autenticación](#10-seguridad-y-autenticación)
+11. [Casos de Uso](#11-casos-de-uso)
+12. [Cronograma de Desarrollo](#12-cronograma-de-desarrollo)
+13. [Glosario](#13-glosario)
 
 ---
 
@@ -59,7 +60,7 @@ La aplicación "TimeTrack Pro" es un sistema de gestión de tiempo laboral que p
 ## 2. Descripción General
 
 ### 2.1 Perspectiva del Producto
-TimeTrack Pro es una aplicación web standalone que funciona como PWA (Progressive Web App), permitiendo uso tanto en navegadores de escritorio como en dispositivos móviles. Utiliza Supabase como backend-as-a-service para autenticación y almacenamiento de datos.
+TimeTrack Pro es una aplicación web de control horario laboral desarrollada como monolito modular, accesible desde navegadores de escritorio y dispositivos móviles con diseño responsive. Utiliza Supabase como backend-as-a-service para autenticación y almacenamiento de datos.
 
 ### 2.2 Funciones Principales
 1. **Gestión de Sesiones de Trabajo**
@@ -96,10 +97,10 @@ TimeTrack Pro es una aplicación web standalone que funciona como PWA (Progressi
 - Opcional: Dispositivo móvil iOS/Android
 
 ### 2.4 Restricciones
-- Debe funcionar sin conexión (offline-first con sincronización)
+- Requiere conexión a internet para todas las operaciones (funcionalidad offline planificada para fases futuras)
 - Tiempo de respuesta máximo de 2 segundos para operaciones críticas
 - Soporte para navegadores de los últimos 2 años
-- Cumplimiento con GDPR para datos personales
+- Aplicación de uso interno; cumplimiento GDPR no verificado formalmente
 
 ---
 
@@ -287,10 +288,13 @@ TimeTrack Pro es una aplicación web standalone que funciona como PWA (Progressi
 ---
 
 ### RF-014: Modo Offline
-**Prioridad:** Media  
+**Prioridad:** Baja (reclasificado desde Media)  
+**Estado:** 🔜 Planificado para fases futuras  
 **Descripción:** Funcionamiento básico sin conexión a internet.
 
-**Criterios de Aceptación:**
+**Nota:** Esta funcionalidad requiere service worker, manifest.json, almacenamiento local (IndexedDB) y estrategia de sincronización con resolución de conflictos. No incluida en el alcance del MVP actual.
+
+**Criterios de Aceptación (pendientes de implementación):**
 - Registro de entradas/salidas offline
 - Almacenamiento local de datos
 - Sincronización automática al recuperar conexión
@@ -322,10 +326,9 @@ TimeTrack Pro es una aplicación web standalone que funciona como PWA (Progressi
 - Code splitting y lazy loading
 
 ### RNF-002: Escalabilidad
-- Soporte para 10,000+ usuarios concurrentes
-- Manejo de 1M+ registros de jornadas
-- Arquitectura modular y extensible
-- Preparado para microservicios futuros
+- Soporte estimado para 500-1,000 usuarios concurrentes (tier Supabase Pro; escalable a 5,000+ con tier Team)
+- Manejo de cientos de miles de registros con índices existentes (partición de tablas recomendada si >500K registros)
+- Arquitectura monolítica modular con separación clara de responsabilidades (pages, components, services, stores, hooks, types)
 
 ### RNF-003: Usabilidad
 - Interfaz intuitiva con curva de aprendizaje mínima
@@ -343,23 +346,22 @@ TimeTrack Pro es una aplicación web standalone que funciona como PWA (Progressi
 - Validación de datos en cliente y servidor
 
 ### RNF-005: Disponibilidad
-- Uptime del 99.9%
-- Backup automático diario de datos
-- Plan de recuperación ante desastres
-- Monitoreo proactivo de errores
+- Uptime delegado al SLA de Supabase (99.9% en tier Pro)
+- Backups automáticos diarios provistos por Supabase (retención 7 días en Pro)
+- Versionado de migraciones SQL en `supabase/migrations/`
+- Monitoreo de errores planificado para sprints futuros (Sentry o LogFlare)
 
 ### RNF-006: Mantenibilidad
-- Código documentado y bien estructurado
-- Tests unitarios (coverage > 80%)
-- Tests de integración
-- CI/CD pipeline automatizado
+- Código documentado y bien estructurado con TypeScript strict mode
+- ESLint configurado para linting automático
+- Estándares internos documentados (`.agent/skills/rpsoft-ui/`, `.agent/skills/rpsoft-supabase/`)
+- Tests unitarios y CI/CD planificados para sprints futuros
 - Versionado semántico
 
 ### RNF-007: Portabilidad
 - Funcional en Chrome, Firefox, Safari, Edge
-- Progressive Web App (PWA)
-- Instalable en dispositivos móviles
-- Responsive design (320px - 4K)
+- Responsive design mobile-first (320px - 4K)
+- PWA (Progressive Web App) planificada para fases futuras
 
 ### RNF-008: Accesibilidad
 - Cumplimiento WCAG 2.1 nivel AA
@@ -559,41 +561,38 @@ timetrack-pro/
 ### 6.5 Librerías Principales
 
 #### UI Components
-- **lucide-react:** Sistema de iconos moderno y consistente
-- **shadcn/ui:** Componentes base accesibles y customizables
+- **lucide-react:** Sistema de iconos
+- **@radix-ui/react-*:** Primitivas de UI accesibles (slot, accordion, checkbox, label, separator)
+- **class-variance-authority:** Variantes de componentes
 
 #### Charts & Visualización
 - **recharts:** Gráficos interactivos y responsivos
-- **react-day-picker:** Selector de fechas avanzado
 
 #### Animaciones
-- **framer-motion:** Animaciones fluidas y performantes
+- **framer-motion:** Animaciones de transición y layout
 
 #### Notificaciones
-- **sonner:** Toast notifications elegantes
-
-#### Forms & Validation
-- **react-hook-form:** Manejo eficiente de formularios
-- **zod:** Validación de schemas con TypeScript
+- **react-hot-toast:** Toast notifications
 
 #### Estado & Data
-- **zustand:** Estado global minimalista
-- **@tanstack/react-query:** Server state management
+- **zustand:** Estado global (sesiones, usuario, tema, timer)
 
 #### Utilidades
 - **date-fns:** Manipulación de fechas
 - **clsx / tailwind-merge:** Merge condicional de clases CSS
 
-#### PDF & Exportación
-- **jspdf:** Generación de PDFs
-- **react-to-print:** Impresión de componentes
+#### Exportación
+- **jspdf / jspdf-autotable:** Generación de PDFs con tablas
+- **xlsx:** Exportación a Excel
+- **file-saver:** Descarga de archivos generados
+- **html2canvas:** Captura de componentes para reportes
 
-### 6.6 Desarrollo & Testing
-- **ESLint:** Linting
-- **Prettier:** Code formatting
-- **Vitest:** Unit testing
-- **Playwright:** E2E testing
-- **TypeScript:** Type checking
+### 6.6 Desarrollo
+- **ESLint:** Linting (configurado con eslint-config-next)
+- **TypeScript:** Type checking en strict mode
+- **babel-plugin-react-compiler:** Optimización automática de React
+
+> **Nota:** Frameworks de testing (Vitest, Playwright) y formatter (Prettier) están planificados para sprints futuros.
 
 ### 6.7 Deployment
 - **Vercel:** Hosting y CI/CD
@@ -601,56 +600,97 @@ timetrack-pro/
 
 ---
 
-## 7. Modelo de Datos
+## 7. Estándares Técnicos (RPSoft)
 
-### 7.1 Esquema de Base de Datos
+El proyecto sigue los estándares internos de RPSoft para asegurar calidad, mantenibilidad y seguridad. Cada estándar está definido como una **Skill** en `.agent/skills/` y se aplica de forma obligatoria.
 
-#### Tabla: `users`
+### 7.1 Estándar UI
+**Referencia completa:** `.agent/skills/rpsoft-ui/skill.md`
+
+| Área | Regla |
+|------|-------|
+| **Stack** | Next.js (App Router) + TypeScript + Tailwind CSS + Radix UI + Lucide React |
+| **Layout** | Sidebar fija (`w-64`) + Header (`h-16 lg:h-20`) + Main con scroll independiente |
+| **Componentes** | PascalCase, carpetas kebab-case, variantes via CVA |
+| **Responsive** | Mobile-first, sidebar como drawer en mobile, breakpoints estándar de Tailwind |
+| **Accesibilidad** | `aria-label` obligatorio en botones de ícono, `aria-current="page"` en nav, semántica HTML (`<main>`, `<nav>`, `<aside>`) |
+| **DoD UI** | Sin errores en consola, responsive funcional, skeletons de carga, feedback en interactivos |
+
+### 7.2 Estándar Supabase / Datos
+**Referencia completa:** `.agent/skills/rpsoft-supabase/skill.md`  
+**Documentación técnica:** `docs/db-standards.md`
+
+| Área | Regla |
+|------|-------|
+| **Naming** | Tablas: plural snake_case. Columnas: snake_case. FKs: `{tabla_singular}_id` |
+| **Campos Base** | `id` (UUID PK), `user_id` (FK), `created_at`, `updated_at` (TIMESTAMPTZ) |
+| **RLS** | Habilitado en TODAS las tablas, políticas per-operation (SELECT/INSERT/UPDATE/DELETE separadas) |
+| **Triggers** | Auto-update `updated_at`, auto-create profile en signup, cálculos automáticos de breaks |
+| **Seguridad** | Variables de entorno para credenciales, nunca exponer `SERVICE_ROLE_KEY` en frontend |
+
+---
+
+## 8. Modelo de Datos
+
+### 8.1 Esquema de Base de Datos
+
+> Referencia técnica completa: `supabase/schema_reference.sql`
+
+#### Tabla: `profiles`
+Extiende `auth.users` de Supabase Auth. Se crea automáticamente al registrar usuario mediante trigger `handle_new_user()`.
 ```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email TEXT UNIQUE NOT NULL,
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
-  expected_hours_per_day DECIMAL(4,2) DEFAULT 8.00,
-  timezone TEXT DEFAULT 'UTC',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  gender TEXT DEFAULT 'No especificado',
+  city TEXT,
+  position TEXT,
+  department TEXT,
+  expected_hours_per_day INTEGER DEFAULT 8,
+  timezone TEXT DEFAULT 'America/Lima',
+  schedule_start TIME DEFAULT '08:00',
+  schedule_end TIME DEFAULT '17:00',
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 ```
 
 #### Tabla: `work_sessions`
 ```sql
 CREATE TABLE work_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  end_time TIMESTAMP WITH TIME ZONE,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_time TIMESTAMPTZ,
   total_break_minutes INTEGER DEFAULT 0,
   net_work_minutes INTEGER,
   notes TEXT,
-  location_lat DECIMAL(10,8),
-  location_lng DECIMAL(11,8),
-  project_id UUID REFERENCES projects(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  location_lat DOUBLE PRECISION,
+  location_lng DOUBLE PRECISION,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'paused', 'break')),
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 CREATE INDEX idx_work_sessions_user_id ON work_sessions(user_id);
-CREATE INDEX idx_work_sessions_start_time ON work_sessions(start_time);
+CREATE INDEX idx_work_sessions_user_date ON work_sessions(user_id, start_time DESC);
+CREATE INDEX idx_work_sessions_status ON work_sessions(user_id, status);
 ```
 
 #### Tabla: `breaks`
 ```sql
 CREATE TABLE breaks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  work_session_id UUID REFERENCES work_sessions(id) ON DELETE CASCADE,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  work_session_id UUID REFERENCES work_sessions(id) ON DELETE CASCADE NOT NULL,
   break_type TEXT NOT NULL CHECK (break_type IN ('lunch', 'short', 'personal')),
-  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  end_time TIMESTAMP WITH TIME ZONE,
+  start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_time TIMESTAMPTZ,
   duration_minutes INTEGER,
   notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 CREATE INDEX idx_breaks_session_id ON breaks(work_session_id);
@@ -659,14 +699,14 @@ CREATE INDEX idx_breaks_session_id ON breaks(work_session_id);
 #### Tabla: `projects`
 ```sql
 CREATE TABLE projects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   description TEXT,
-  color TEXT,
+  color TEXT DEFAULT '#166534',
   is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 CREATE INDEX idx_projects_user_id ON projects(user_id);
@@ -675,29 +715,34 @@ CREATE INDEX idx_projects_user_id ON projects(user_id);
 #### Tabla: `user_preferences`
 ```sql
 CREATE TABLE user_preferences (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   theme TEXT DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
   notifications_enabled BOOLEAN DEFAULT TRUE,
   break_reminders BOOLEAN DEFAULT TRUE,
   overtime_alerts BOOLEAN DEFAULT TRUE,
+  exit_reminder BOOLEAN DEFAULT TRUE,
   language TEXT DEFAULT 'es',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  work_days_per_week INTEGER DEFAULT 5,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 ```
 
-### 7.2 Relaciones
-- Un usuario puede tener múltiples sesiones de trabajo
-- Una sesión de trabajo puede tener múltiples pausas
-- Un usuario puede tener múltiples proyectos
-- Una sesión puede estar asociada a un proyecto
-- Un usuario tiene una configuración de preferencias
+### 8.2 Relaciones
+- Un usuario (`auth.users`) tiene un perfil (`profiles`, 1:1)
+- Un usuario puede tener múltiples sesiones de trabajo (`work_sessions`, 1:N)
+- Una sesión de trabajo puede tener múltiples pausas (`breaks`, 1:N)
+- Un usuario puede tener múltiples proyectos (`projects`, 1:N)
+- Una sesión puede estar asociada a un proyecto (opcional, N:1)
+- Un usuario tiene una configuración de preferencias (`user_preferences`, 1:1)
 
-### 7.3 Row Level Security (RLS)
+### 8.3 Row Level Security (RLS)
+
+RLS está habilitado en las 5 tablas con políticas per-operation (SELECT, INSERT, UPDATE, DELETE separadas).
 
 ```sql
--- Users solo pueden ver y modificar sus propios datos
+-- Ejemplo: work_sessions (aplicado a todas las tablas con user_id)
 ALTER TABLE work_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own sessions"
@@ -710,13 +755,22 @@ CREATE POLICY "Users can insert own sessions"
 
 CREATE POLICY "Users can update own sessions"
   ON work_sessions FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own sessions"
   ON work_sessions FOR DELETE
   USING (auth.uid() = user_id);
 
--- Aplicar políticas similares a todas las tablas
+-- breaks: derivación de propiedad via EXISTS
+CREATE POLICY "Users can view own breaks"
+  ON breaks FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM work_sessions ws
+      WHERE ws.id = work_session_id AND ws.user_id = auth.uid()
+    )
+  );
 ```
 
 ### 7.4 Funciones de Base de Datos
@@ -799,9 +853,9 @@ GROUP BY user_id, DATE_TRUNC('week', start_time);
 
 ---
 
-## 8. Especificaciones de UI/UX
+## 9. Especificaciones de UI/UX
 
-### 8.1 Sistema de Diseño
+### 9.1 Sistema de Diseño
 
 #### Paleta de Colores (Light Mode)
 ```javascript
@@ -893,7 +947,7 @@ boxShadow: {
 }
 ```
 
-### 8.2 Componentes UI Principales
+### 9.2 Componentes UI Principales
 
 #### TimeTracker Component
 - Timer grande y visible
@@ -922,7 +976,7 @@ boxShadow: {
 - Navegación intuitiva
 - Resaltado del día actual
 
-### 8.3 Animaciones (Framer Motion)
+### 9.3 Animaciones (Framer Motion)
 
 ```typescript
 // Fade in
@@ -948,7 +1002,7 @@ const slideIn = {
 }
 ```
 
-### 8.4 Responsive Breakpoints
+### 9.4 Responsive Breakpoints
 ```javascript
 screens: {
   sm: '640px',   // Mobile landscape
@@ -959,7 +1013,7 @@ screens: {
 }
 ```
 
-### 8.5 Accesibilidad
+### 9.5 Accesibilidad
 - Focus indicators visibles
 - Labels en todos los inputs
 - ARIA labels apropiados
@@ -969,9 +1023,9 @@ screens: {
 
 ---
 
-## 9. Seguridad y Autenticación
+## 10. Seguridad y Autenticación
 
-### 9.1 Flujo de Autenticación
+### 10.1 Flujo de Autenticación
 
 ```
 1. Usuario ingresa credenciales
@@ -983,7 +1037,7 @@ screens: {
 7. Si token expira, refresh automático
 ```
 
-### 9.2 Protección de Rutas
+### 10.2 Protección de Rutas
 
 ```typescript
 // middleware.ts
@@ -1003,7 +1057,7 @@ export async function middleware(request: NextRequest) {
 }
 ```
 
-### 9.3 Validación de Datos
+### 10.3 Validación de Datos
 
 ```typescript
 // Ejemplo con Zod
@@ -1015,12 +1069,12 @@ const sessionSchema = z.object({
 });
 ```
 
-### 9.4 Rate Limiting
+### 10.4 Rate Limiting
 - Máximo 100 requests por minuto por usuario
 - Máximo 5 intentos de login por 15 minutos
 - Throttling en operaciones de escritura
 
-### 9.5 Encriptación
+### 10.5 Encriptación
 - HTTPS en todas las comunicaciones
 - Passwords hasheados con bcrypt
 - Tokens JWT firmados
@@ -1028,7 +1082,7 @@ const sessionSchema = z.object({
 
 ---
 
-## 10. Casos de Uso
+## 11. Casos de Uso
 
 ### CU-001: Registrar Inicio de Jornada
 
@@ -1096,7 +1150,7 @@ const sessionSchema = z.object({
 
 ---
 
-## 11. Cronograma de Desarrollo
+## 12. Cronograma de Desarrollo
 
 ### Fase 1: Configuración y Base (Semana 1-2)
 - ✓ Configuración del proyecto Next.js
@@ -1142,7 +1196,7 @@ const sessionSchema = z.object({
 
 ---
 
-## 12. Glosario
+## 13. Glosario
 
 **Jornada Laboral:** Período de tiempo desde que un usuario inicia trabajo hasta que lo finaliza.
 
@@ -1244,16 +1298,3 @@ supabase db reset
 - [ ] SSL/HTTPS habilitado
 
 ---
-
-## Conclusión
-
-Este documento especifica los requerimientos completos para el desarrollo de TimeTrack Pro, una aplicación moderna de control horario. La implementación seguirá las mejores prácticas de desarrollo web, priorizando experiencia de usuario, rendimiento, seguridad y mantenibilidad.
-
-El sistema está diseñado para ser escalable, extensible y fácil de mantener, utilizando tecnologías modernas y probadas en la industria.
-
----
-
-**Documento preparado por:** Claude AI  
-**Fecha de última actualización:** 11 de Febrero, 2026  
-**Versión:** 1.0  
-**Estado:** Aprobado para Desarrollo
